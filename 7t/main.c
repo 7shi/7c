@@ -112,9 +112,9 @@ int read_text(const char *fn)
 
 int main()
 {
-	if (read_text("1"))
+	if (read_text("../Test/1"))
 	{
-		void *f = fopen("1.bin", "wb");
+		void *f = fopen("../Test/1.bin", "wb");
 		if (f)
 		{
 			fwrite(text_buf, (int)text_size, 1, f);
