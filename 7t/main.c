@@ -79,7 +79,6 @@ int read_text_file(void *f)
 		const char *name;
 		if (fread(buf, 64, 1, f) == 0) break;
 		name = shstrtab + *(uint32_t *)buf;
-		printf("%s\n", name);
 		if (strcmp(name, ".text") == 0)
 		{
 			text_addr = *(uint64_t *)&buf[16];
