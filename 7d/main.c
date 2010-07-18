@@ -1,5 +1,6 @@
 int printf(const char *, ...);
 int fprintf(void *, const char *, ...);
+int sprintf(char *, const char *, ...);
 void *fopen(const char *, const char *);
 int fclose(void *);
 int fread(void *, int, int, void *);
@@ -1141,7 +1142,7 @@ void init_table()
 	subops[0x1c][0x78] = "ftois";
 }
 
-enum Op disassemble(uint32_t code)
+enum Op get_op(uint32_t code)
 {
 	int op = (int)(code >> 26), op16 = op << 16;
 	switch (op)
@@ -1180,6 +1181,210 @@ enum Op disassemble(uint32_t code)
 const char *get_mnemonic(enum Op op)
 {
 	return subops[((int)op) >>16][((int)op) & 0xffff];
+}
+
+void disassemble(void *f, uint64_t addr, uint32_t code)
+{
+	enum Op op = get_op(code);
+	int opc = (int)(code >> 26);
+	const char *mne = get_mnemonic(op);
+	switch (formats[opc])
+	{
+		default:
+			fprintf(f, "%s %08x", mne, code & 0x03ffffff);
+			return;
+		case Bra:
+			{
+				int ra = (int)((code >> 21) & 31);
+				int disp = code & 0x001fffff;
+				char sdisp[32];
+				if (disp < 0x00100000)
+					sprintf(sdisp, "%08x", addr + disp * 4 + 4);
+				else
+					sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
+				if (ra == 31 && op == Br)
+					fprintf(f, "br %s", sdisp);
+				else
+					fprintf(f, "%s %s,%s", mne, regname[ra], sdisp);
+				return;
+			}
+		case Mem:
+			{
+				int ra = (int)((code >> 21) & 31);
+				int rb = (int)((code >> 16) & 31);
+				int disp = (int)(code & 0xffff);
+				char args[32];
+				if (disp < 0x8000)
+					sprintf(args, "0x%x(%s)", disp, regname[rb]);
+				else
+					sprintf(args, "-0x%x(%s)", 0x10000 - disp, regname[rb]);
+				if (rb == 31 && op == Lda)
+				{
+					fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
+					return;
+				}
+				else if (rb == 31 && op == Ldah)
+				{
+					fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
+					return;
+				}
+				else if (ra == 31)
+				{
+					if (disp == 0 && op == Ldq_u)
+					{
+						fprintf(f, "unop");
+						return;
+					}
+					else
+					{
+						const char *pse = 0;
+						switch (op)
+						{
+							case Ldl: pse = "prefetch"; break;
+							case Ldq: pse = "prefetch_en"; break;
+							case Lds: pse = "prefetch_m"; break;
+							case Ldt: pse = "prefetch_men"; break;
+						}
+						if (pse)
+						{
+							fprintf(f, "%s %s", pse, args);
+							return;
+						}
+					}
+				}
+				fprintf(f, "%s %s,%s", mne, regname[ra], args);
+				return;
+			}
+		case Mfc:
+			{
+				int ra = (int)((code >> 21) & 31);
+				int rb = (int)((code >> 16) & 31);
+				fprintf(f, "%s %s,%s", mne, regname[ra], regname[rb]);
+				return;
+			}
+		case Mbr:
+			{
+				int ra = (int)((code >> 21) & 31);
+				int rb = (int)((code >> 16) & 31);
+				int disp = (int)(code & 0x3fff);
+				fprintf(f, "%s %s,(%s),0x%04x", mne, regname[ra], regname[rb], disp);
+				return;
+			}
+		case Opr:
+			{
+				int ra = (int)((code >> 21) & 31);
+				int rb = -1;
+				int rc = (int)(code & 31);
+				char arg2[32];
+				if ((code & 0x1000) == 0)
+				{
+					rb = (int)((code >> 16) & 31);
+					strcpy(arg2, regname[rb]);
+				}
+				else
+					sprintf(arg2, "0x%02x", (code >> 13) & 0xff);
+				if (ra == 31)
+				{
+					const char *pse = 0;
+					switch (op)
+					{
+						case Bis:
+							if (rb == 31 && rc == 31)
+							{
+								fprintf(f, "nop");
+								return;
+							}
+							else if (rb == 31)
+							{
+								fprintf(f, "clr %s", regname[rc]);
+								return;
+							}
+							else
+								pse = "mov";
+							break;
+						case Addl: pse = "sextl"; break;
+						case Ornot: pse = "not"; break;
+						case Subl: pse = "negl"; break;
+						case Subl__v: pse = "negl/v"; break;
+						case Subq: pse = "negq"; break;
+						case Subq__v: pse = "negq/v"; break;
+					}
+					if (pse)
+					{
+						fprintf(f, "%s %s,%s", pse, arg2, regname[rc]);
+						return;
+					}
+				}
+				fprintf(f, "%s %s,%s,%s", mne, regname[ra], arg2, regname[rc]);
+				return;
+			}
+		case F_P:
+			{
+				int fa = (int)((code >> 21) & 31);
+				int fb = (int)((code >> 16) & 31);
+				int fc = (int)(code & 31);
+				int pst = 2;
+				const char *pse = 0;
+				if (fa == 31)
+					switch (op)
+					{
+						case Cpys:
+							if (fb == 31 && fc == 31)
+							{
+								pst = 0;
+								pse = "fnop";
+							}
+							else if (fb == 31)
+							{
+								pst = 1;
+								pse = "fclr";
+							}
+							else
+								pse = "fabs";
+							break;
+						case Subf: pse = "negf"; break;
+						case Subf__s: pse = "negf/s"; break;
+						case Subg: pse = "negg"; break;
+						case Subg__s: pse = "negg/s"; break;
+						case Subs: pse = "negs"; break;
+						case Subs__su: pse = "negs/su"; break;
+						case Subs__sui: pse = "negs/sui"; break;
+						case Subt: pse = "negt"; break;
+						case Subt__su: pse = "negt/su"; break;
+						case Subt__sui: pse = "negt/sui"; break;
+					};
+				if (pse == 0 && fa == fb)
+					switch (op)
+					{
+						case Cpys: pse = "fmov"; break;
+						case Cpysn: pse = "fneg"; break;
+					}
+				if (pse == 0 && fa == fb && fb == fc)
+					switch (op)
+					{
+						case Mf_fpcr:
+						case Mt_fpcr:
+							pst = 1;
+							pse = mne;
+							break;
+					}
+				if (pse)
+					switch (pst)
+					{
+						case 0:
+							fprintf(f, "%s", pse);
+							return;
+						case 1:
+							fprintf(f, "%s f%d", pse, fc);
+							return;
+						case 2:
+							fprintf(f, "%s f%d,f%d", pse, fb, fc);
+							return;
+					}
+				fprintf(f, "%s f%d,f%d,f%d", mne, fa, fb, fc);
+				return;
+			}
+	}
 }
 
 uint64_t text_addr, text_size;
@@ -1297,18 +1502,17 @@ int main()
 		if (read_text(src))
 		{
 			void *f;
-			printf("text_addr: 0x%016x\n", text_addr);
-			printf("text_size: 0x%016x\n", text_size);
-			f = fopen(dst, "wb");
+			printf("text_addr: 0x%08x\n", text_addr);
+			printf("text_size: 0x%08x\n", text_size);
+			f = fopen(dst, "w");
 			if (f)
 			{
 				int j;
 				for (j = 0; j < text_size; j += 4)
 				{
-					uint32_t code = *(uint32_t *)&text_buf[j];
-					enum Op op = disassemble(code);
-					const char *mne = get_mnemonic(op);
-					fprintf(f, "%016x: %s\n", (long)(text_addr + j), mne);
+					fprintf(f, "%08x: ", (long)(text_addr + j));
+					disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
+					fprintf(f, "\n");
 				}
 				fclose(f);
 			}
