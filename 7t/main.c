@@ -122,17 +122,18 @@ int main()
 		strcat(src, num);
 		strcpy(dst, src);
 		strcat(dst, ".bin");
+		printf("%s -> %s\n", src, dst);
 		if (read_text(src))
 		{
-			void *f = fopen(dst, "wb");
+			void *f;
+			printf("text_addr: 0x%016x\n", text_addr);
+			printf("text_size: 0x%016x\n", text_size);
+			f = fopen(dst, "wb");
 			if (f)
 			{
 				fwrite(text_buf, (int)text_size, 1, f);
 				fclose(f);
 			}
-			printf("%s -> %s\n", src, dst);
-			printf("text_addr: 0x%016x\n", text_addr);
-			printf("text_size: 0x%016x\n", text_size);
 		}
 	}
 	return 0;
