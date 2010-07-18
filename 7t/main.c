@@ -5,6 +5,8 @@ int fread(void *, int, int, void *);
 int fwrite(const void *, int, int, void *);
 int fseek(void *, int, int);
 int strcmp(const char *, const char *);
+char *strcpy(char *, const char *);
+char *strcat(char *, const char *);
 
 typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
@@ -112,16 +114,27 @@ int read_text(const char *fn)
 
 int main()
 {
-	if (read_text("../Test/1"))
+	int i;
+	for (i = 1; i <= 6; i++)
 	{
-		void *f = fopen("../Test/1.bin", "wb");
-		if (f)
+		char src[32] = "../Test/", dst[32];
+		char num[8] = "x";
+		num[0] = '0' + i;
+		strcat(src, num);
+		strcpy(dst, src);
+		strcat(dst, ".bin");
+		if (read_text(src))
 		{
-			fwrite(text_buf, (int)text_size, 1, f);
-			fclose(f);
+			void *f = fopen(dst, "wb");
+			if (f)
+			{
+				fwrite(text_buf, (int)text_size, 1, f);
+				fclose(f);
+			}
+			printf("%s -> %s\n", src, dst);
+			printf("text_addr: 0x%016x\n", text_addr);
+			printf("text_size: 0x%016x\n", text_size);
 		}
-		printf("text_addr: 0x%016x\n", text_addr);
-		printf("text_size: 0x%016x\n", text_size);
 	}
 	return 0;
 }

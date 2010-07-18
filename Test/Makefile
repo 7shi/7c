@@ -7,4 +7,4 @@ SOURCES = 1.c 2.c 3.c 4.c 5.c 6.c
 all: $(TARGET)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) *.bin
