@@ -896,7 +896,10 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 				int ra = (int)((code >> 21) & 31);
 				int rb = (int)((code >> 16) & 31);
 				int disp = (int)(code & 0x3fff);
-				fprintf(f, "%s %s,%s,0x%04x", mne, regname[ra], regname[rb], disp);
+				if (op == Ret && ra == Zero && rb == RA && disp == 1)
+					fprintf(f, "%s", mne);
+				else
+					fprintf(f, "%s %s,%s,0x%04x", mne, regname[ra], regname[rb], disp);
 				return op;
 			}
 		case Opr:
