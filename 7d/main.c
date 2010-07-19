@@ -1144,17 +1144,17 @@ void init_table()
 
 enum Op get_op(uint32_t code)
 {
-	int op = (int)(code >> 26), op16 = op << 16;
+	int op = (int)(code >> 26), subop = 0;
 	switch (op)
 	{
 		case 0x10:
 		case 0x11:
 		case 0x12:
-		case 0x13: return (enum Op)(op16 | ((code >> 5) & 0x7f));
+		case 0x13: subop = (code >> 5) & 0x7f; break;
 		case 0x14:
 		case 0x15:
 		case 0x16:
-		case 0x17: return (enum Op)(op16 | ((code >> 5) & 0x7ff));
+		case 0x17: subop = (code >> 5) & 0x7ff; break;
 		case 0x18:
 			switch (code & 0xffff)
 			{
@@ -1172,10 +1172,10 @@ enum Op get_op(uint32_t code)
 				case 0xfc00: return Wh64en;
 			}
 			break;
-		case 0x1a: return (enum Op)(op16 | ((code >> 14) & 3));
-		case 0x1c: return (enum Op)(op16 | ((code >> 5) & 0x7f));
+		case 0x1a: subop = (code >> 14) & 3; break;
+		case 0x1c: subop = (code >> 5) & 0x7f; break;
 	}
-	return (enum Op)op16;
+	return subops[op][subop] ? (enum Op)((op << 16) | subop) : UNDEF;
 }
 
 const char *get_mnemonic(enum Op op)
