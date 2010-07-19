@@ -588,70 +588,160 @@ enum Op
 	Bgt = 0x3f0000,
 };
 
-const char *op00[] = { "call_pal" };
-const char *op01[] = { "opc01" };
-const char *op02[] = { "opc02" };
-const char *op03[] = { "opc03" };
-const char *op04[] = { "opc04" };
-const char *op05[] = { "opc05" };
-const char *op06[] = { "opc06" };
-const char *op07[] = { "opc07" };
-const char *op08[] = { "lda" };
-const char *op09[] = { "ldah" };
-const char *op0a[] = { "ldbu" };
-const char *op0b[] = { "ldq_u" };
-const char *op0c[] = { "ldwu" };
-const char *op0d[] = { "stw" };
-const char *op0e[] = { "stb" };
-const char *op0f[] = { "stq_u" };
-const char *op10[0x80];
-const char *op11[0x80];
-const char *op12[0x80];
-const char *op13[0x80];
-const char *op14[0x800];
-const char *op15[0x800];
-const char *op16[0x800];
-const char *op17[0x800];
-const char *op18[] = { "pal18" };
-const char *op19[] = { "pal19" };
-const char *op1a[0x4];
-const char *op1b[] = { "pal1b" };
-const char *op1c[0x80];
-const char *op1d[] = { "pal1d" };
-const char *op1e[] = { "pal1e" };
-const char *op1f[] = { "pal1f" };
-const char *op20[] = { "ldf" };
-const char *op21[] = { "ldg" };
-const char *op22[] = { "lds", "prefetch_m" };
-const char *op23[] = { "ldt", "prefetch_men" };
-const char *op24[] = { "stf" };
-const char *op25[] = { "stg" };
-const char *op26[] = { "sts" };
-const char *op27[] = { "stt" };
-const char *op28[] = { "ldl", "prefetch" };
-const char *op29[] = { "ldq", "prefetch_en" };
-const char *op2a[] = { "ldl_l" };
-const char *op2b[] = { "ldq_l" };
-const char *op2c[] = { "stl" };
-const char *op2d[] = { "stq" };
-const char *op2e[] = { "stl_c" };
-const char *op2f[] = { "stq_c" };
-const char *op30[] = { "br" };
-const char *op31[] = { "fbeq" };
-const char *op32[] = { "fblt" };
-const char *op33[] = { "fble" };
-const char *op34[] = { "bsr" };
-const char *op35[] = { "fbne" };
-const char *op36[] = { "fbge" };
-const char *op37[] = { "fbgt" };
-const char *op38[] = { "blbc" };
-const char *op39[] = { "beq" };
-const char *op3a[] = { "blt" };
-const char *op3b[] = { "ble" };
-const char *op3c[] = { "blbs" };
-const char *op3d[] = { "bne" };
-const char *op3e[] = { "bge" };
-const char *op3f[] = { "bgt" };
+const char *opnames[] =
+{
+	"addf", "addf/c", "addf/s", "addf/sc", "addf/su", "addf/suc", "addf/u", "addf/uc",
+	"addg", "addg/c", "addg/s", "addg/sc", "addg/su", "addg/suc", "addg/u", "addg/uc",
+	"addl", "addl/v", "addq", "addq/v", "adds", "adds/c", "adds/d", "adds/m",
+	"adds/su", "adds/suc", "adds/sud", "adds/sui", "adds/suic", "adds/suid", "adds/suim", "adds/sum",
+	"adds/u", "adds/uc", "adds/ud", "adds/um", "addt", "addt/c", "addt/d", "addt/m",
+	"addt/su", "addt/suc", "addt/sud", "addt/sui", "addt/suic", "addt/suid", "addt/suim", "addt/sum",
+	"addt/u", "addt/uc", "addt/ud", "addt/um", "amask", "and", "beq", "bge",
+	"bgt", "bic", "bis", "blbc", "blbs", "ble", "blt", "bne",
+	"br", "bsr", "call_pal", "cmoveq", "cmovge", "cmovgt", "cmovlbc", "cmovlbs",
+	"cmovle", "cmovlt", "cmovne", "cmpbge", "cmpeq", "cmpgeq", "cmpgeq/s", "cmpgle",
+	"cmpgle/s", "cmpglt", "cmpglt/s", "cmple", "cmplt", "cmpteq", "cmpteq/su", "cmptle",
+	"cmptle/su", "cmptlt", "cmptlt/su", "cmptun", "cmptun/su", "cmpule", "cmpult", "cpys",
+	"cpyse", "cpysn", "ctlz", "ctpop", "cttz", "cvtdg", "cvtdg/c", "cvtdg/s",
+	"cvtdg/sc", "cvtdg/su", "cvtdg/suc", "cvtdg/u", "cvtdg/uc", "cvtgd", "cvtgd/c", "cvtgd/s",
+	"cvtgd/sc", "cvtgd/su", "cvtgd/suc", "cvtgd/u", "cvtgd/uc", "cvtgf", "cvtgf/c", "cvtgf/s",
+	"cvtgf/sc", "cvtgf/su", "cvtgf/suc", "cvtgf/u", "cvtgf/uc", "cvtgq", "cvtgq/c", "cvtgq/s",
+	"cvtgq/sc", "cvtgq/sv", "cvtgq/svc", "cvtgq/v", "cvtgq/vc", "cvtlq", "cvtqf", "cvtqf/c",
+	"cvtqg", "cvtqg/c", "cvtql", "cvtql/sv", "cvtql/v", "cvtqs", "cvtqs/c", "cvtqs/d",
+	"cvtqs/m", "cvtqs/sui", "cvtqs/suic", "cvtqs/suid", "cvtqs/suim", "cvtqt", "cvtqt/c", "cvtqt/d",
+	"cvtqt/m", "cvtqt/sui", "cvtqt/suic", "cvtqt/suid", "cvtqt/suim", "cvtst", "cvtst/s", "cvttq",
+	"cvttq/c", "cvttq/d", "cvttq/m", "cvttq/sv", "cvttq/svc", "cvttq/svd", "cvttq/svi", "cvttq/svic",
+	"cvttq/svid", "cvttq/svim", "cvttq/svm", "cvttq/v", "cvttq/vc", "cvttq/vd", "cvttq/vm", "cvtts",
+	"cvtts/c", "cvtts/d", "cvtts/m", "cvtts/su", "cvtts/suc", "cvtts/sud", "cvtts/sui", "cvtts/suic",
+	"cvtts/suid", "cvtts/suim", "cvtts/sum", "cvtts/u", "cvtts/uc", "cvtts/ud", "cvtts/um", "divf",
+	"divf/c", "divf/s", "divf/sc", "divf/su", "divf/suc", "divf/u", "divf/uc", "divg",
+	"divg/c", "divg/s", "divg/sc", "divg/su", "divg/suc", "divg/u", "divg/uc", "divs",
+	"divs/c", "divs/d", "divs/m", "divs/su", "divs/suc", "divs/sud", "divs/sui", "divs/suic",
+	"divs/suid", "divs/suim", "divs/sum", "divs/u", "divs/uc", "divs/ud", "divs/um", "divt",
+	"divt/c", "divt/d", "divt/m", "divt/su", "divt/suc", "divt/sud", "divt/sui", "divt/suic",
+	"divt/suid", "divt/suim", "divt/sum", "divt/u", "divt/uc", "divt/ud", "divt/um", "ecb",
+	"eqv", "excb", "extbl", "extlh", "extll", "extqh", "extql", "extwh",
+	"extwl", "fbeq", "fbge", "fbgt", "fble", "fblt", "fbne", "fcmoveq",
+	"fcmovge", "fcmovgt", "fcmovle", "fcmovlt", "fcmovne", "fetch", "fetch_m", "ftois",
+	"ftoit", "implver", "insbl", "inslh", "insll", "insqh", "insql", "inswh",
+	"inswl", "itoff", "itofs", "itoft", "jmp", "jsr", "jsr_coroutine", "lda",
+	"ldah", "ldbu", "ldf", "ldg", "ldl", "ldl_l", "ldq", "ldq_l",
+	"ldq_u", "lds", "ldt", "ldwu", "maxsb8", "maxsw4", "maxub8", "maxuw4",
+	"mb", "mf_fpcr", "minsb8", "minsw4", "minub8", "minuw4", "mskbl", "msklh",
+	"mskll", "mskqh", "mskql", "mskwh", "mskwl", "mt_fpcr", "mulf", "mulf/c",
+	"mulf/s", "mulf/sc", "mulf/su", "mulf/suc", "mulf/u", "mulf/uc", "mulg", "mulg/c",
+	"mulg/s", "mulg/sc", "mulg/su", "mulg/suc", "mulg/u", "mulg/uc", "mull", "mull/v",
+	"mulq", "mulq/v", "muls", "muls/c", "muls/d", "muls/m", "muls/su", "muls/suc",
+	"muls/sud", "muls/sui", "muls/suic", "muls/suid", "muls/suim", "muls/sum", "muls/u", "muls/uc",
+	"muls/ud", "muls/um", "mult", "mult/c", "mult/d", "mult/m", "mult/su", "mult/suc",
+	"mult/sud", "mult/sui", "mult/suic", "mult/suid", "mult/suim", "mult/sum", "mult/u", "mult/uc",
+	"mult/ud", "mult/um", "opc01", "opc02", "opc03", "opc04", "opc05", "opc06",
+	"opc07", "ornot", "pal19", "pal1b", "pal1d", "pal1e", "pal1f", "perr",
+	"pklb", "pkwb", "prefetch", "prefetch_en", "prefetch_m", "prefetch_men", "rc", "ret",
+	"rpcc", "rs", "s4addl", "s4addq", "s4subl", "s4subq", "s8addl", "s8addq",
+	"s8subl", "s8subq", "sextb", "sextw", "sll", "sqrtf", "sqrtf/c", "sqrtf/s",
+	"sqrtf/sc", "sqrtf/su", "sqrtf/suc", "sqrtf/u", "sqrtf/uc", "sqrtg", "sqrtg/c", "sqrtg/s",
+	"sqrtg/sc", "sqrtg/su", "sqrtg/suc", "sqrtg/u", "sqrtg/uc", "sqrts", "sqrts/c", "sqrts/d",
+	"sqrts/m", "sqrts/su", "sqrts/suc", "sqrts/sud", "sqrts/sui", "sqrts/suic", "sqrts/suid", "sqrts/suim",
+	"sqrts/sum", "sqrts/u", "sqrts/uc", "sqrts/ud", "sqrts/um", "sqrtt", "sqrtt/c", "sqrtt/d",
+	"sqrtt/m", "sqrtt/su", "sqrtt/suc", "sqrtt/sud", "sqrtt/sui", "sqrtt/suic", "sqrtt/suid", "sqrtt/suim",
+	"sqrtt/sum", "sqrtt/u", "sqrtt/uc", "sqrtt/ud", "sqrtt/um", "sra", "srl", "stb",
+	"stf", "stg", "stl", "stl_c", "stq", "stq_c", "stq_u", "sts",
+	"stt", "stw", "subf", "subf/c", "subf/s", "subf/sc", "subf/su", "subf/suc",
+	"subf/u", "subf/uc", "subg", "subg/c", "subg/s", "subg/sc", "subg/su", "subg/suc",
+	"subg/u", "subg/uc", "subl", "subl/v", "subq", "subq/v", "subs", "subs/c",
+	"subs/d", "subs/m", "subs/su", "subs/suc", "subs/sud", "subs/sui", "subs/suic", "subs/suid",
+	"subs/suim", "subs/sum", "subs/u", "subs/uc", "subs/ud", "subs/um", "subt", "subt/c",
+	"subt/d", "subt/m", "subt/su", "subt/suc", "subt/sud", "subt/sui", "subt/suic", "subt/suid",
+	"subt/suim", "subt/sum", "subt/u", "subt/uc", "subt/ud", "subt/um", "trapb", "umulh",
+	"unpkbl", "unpkbw", "wh64", "wh64en", "wmb", "xor", "zap", "zapnot",
+};
+
+enum Op opcodes[] =
+{
+	Addf, Addf__c, Addf__s, Addf__sc, Addf__su, Addf__suc, Addf__u, Addf__uc,
+	Addg, Addg__c, Addg__s, Addg__sc, Addg__su, Addg__suc, Addg__u, Addg__uc,
+	Addl, Addl__v, Addq, Addq__v, Adds, Adds__c, Adds__d, Adds__m,
+	Adds__su, Adds__suc, Adds__sud, Adds__sui, Adds__suic, Adds__suid, Adds__suim, Adds__sum,
+	Adds__u, Adds__uc, Adds__ud, Adds__um, Addt, Addt__c, Addt__d, Addt__m,
+	Addt__su, Addt__suc, Addt__sud, Addt__sui, Addt__suic, Addt__suid, Addt__suim, Addt__sum,
+	Addt__u, Addt__uc, Addt__ud, Addt__um, Amask, And, Beq, Bge,
+	Bgt, Bic, Bis, Blbc, Blbs, Ble, Blt, Bne,
+	Br, Bsr, Call_pal, Cmoveq, Cmovge, Cmovgt, Cmovlbc, Cmovlbs,
+	Cmovle, Cmovlt, Cmovne, Cmpbge, Cmpeq, Cmpgeq, Cmpgeq__s, Cmpgle,
+	Cmpgle__s, Cmpglt, Cmpglt__s, Cmple, Cmplt, Cmpteq, Cmpteq__su, Cmptle,
+	Cmptle__su, Cmptlt, Cmptlt__su, Cmptun, Cmptun__su, Cmpule, Cmpult, Cpys,
+	Cpyse, Cpysn, Ctlz, Ctpop, Cttz, Cvtdg, Cvtdg__c, Cvtdg__s,
+	Cvtdg__sc, Cvtdg__su, Cvtdg__suc, Cvtdg__u, Cvtdg__uc, Cvtgd, Cvtgd__c, Cvtgd__s,
+	Cvtgd__sc, Cvtgd__su, Cvtgd__suc, Cvtgd__u, Cvtgd__uc, Cvtgf, Cvtgf__c, Cvtgf__s,
+	Cvtgf__sc, Cvtgf__su, Cvtgf__suc, Cvtgf__u, Cvtgf__uc, Cvtgq, Cvtgq__c, Cvtgq__s,
+	Cvtgq__sc, Cvtgq__sv, Cvtgq__svc, Cvtgq__v, Cvtgq__vc, Cvtlq, Cvtqf, Cvtqf__c,
+	Cvtqg, Cvtqg__c, Cvtql, Cvtql__sv, Cvtql__v, Cvtqs, Cvtqs__c, Cvtqs__d,
+	Cvtqs__m, Cvtqs__sui, Cvtqs__suic, Cvtqs__suid, Cvtqs__suim, Cvtqt, Cvtqt__c, Cvtqt__d,
+	Cvtqt__m, Cvtqt__sui, Cvtqt__suic, Cvtqt__suid, Cvtqt__suim, Cvtst, Cvtst__s, Cvttq,
+	Cvttq__c, Cvttq__d, Cvttq__m, Cvttq__sv, Cvttq__svc, Cvttq__svd, Cvttq__svi, Cvttq__svic,
+	Cvttq__svid, Cvttq__svim, Cvttq__svm, Cvttq__v, Cvttq__vc, Cvttq__vd, Cvttq__vm, Cvtts,
+	Cvtts__c, Cvtts__d, Cvtts__m, Cvtts__su, Cvtts__suc, Cvtts__sud, Cvtts__sui, Cvtts__suic,
+	Cvtts__suid, Cvtts__suim, Cvtts__sum, Cvtts__u, Cvtts__uc, Cvtts__ud, Cvtts__um, Divf,
+	Divf__c, Divf__s, Divf__sc, Divf__su, Divf__suc, Divf__u, Divf__uc, Divg,
+	Divg__c, Divg__s, Divg__sc, Divg__su, Divg__suc, Divg__u, Divg__uc, Divs,
+	Divs__c, Divs__d, Divs__m, Divs__su, Divs__suc, Divs__sud, Divs__sui, Divs__suic,
+	Divs__suid, Divs__suim, Divs__sum, Divs__u, Divs__uc, Divs__ud, Divs__um, Divt,
+	Divt__c, Divt__d, Divt__m, Divt__su, Divt__suc, Divt__sud, Divt__sui, Divt__suic,
+	Divt__suid, Divt__suim, Divt__sum, Divt__u, Divt__uc, Divt__ud, Divt__um, Ecb,
+	Eqv, Excb, Extbl, Extlh, Extll, Extqh, Extql, Extwh,
+	Extwl, Fbeq, Fbge, Fbgt, Fble, Fblt, Fbne, Fcmoveq,
+	Fcmovge, Fcmovgt, Fcmovle, Fcmovlt, Fcmovne, Fetch, Fetch_m, Ftois,
+	Ftoit, Implver, Insbl, Inslh, Insll, Insqh, Insql, Inswh,
+	Inswl, Itoff, Itofs, Itoft, Jmp, Jsr, Jsr_coroutine, Lda,
+	Ldah, Ldbu, Ldf, Ldg, Ldl, Ldl_l, Ldq, Ldq_l,
+	Ldq_u, Lds, Ldt, Ldwu, Maxsb8, Maxsw4, Maxub8, Maxuw4,
+	Mb, Mf_fpcr, Minsb8, Minsw4, Minub8, Minuw4, Mskbl, Msklh,
+	Mskll, Mskqh, Mskql, Mskwh, Mskwl, Mt_fpcr, Mulf, Mulf__c,
+	Mulf__s, Mulf__sc, Mulf__su, Mulf__suc, Mulf__u, Mulf__uc, Mulg, Mulg__c,
+	Mulg__s, Mulg__sc, Mulg__su, Mulg__suc, Mulg__u, Mulg__uc, Mull, Mull__v,
+	Mulq, Mulq__v, Muls, Muls__c, Muls__d, Muls__m, Muls__su, Muls__suc,
+	Muls__sud, Muls__sui, Muls__suic, Muls__suid, Muls__suim, Muls__sum, Muls__u, Muls__uc,
+	Muls__ud, Muls__um, Mult, Mult__c, Mult__d, Mult__m, Mult__su, Mult__suc,
+	Mult__sud, Mult__sui, Mult__suic, Mult__suid, Mult__suim, Mult__sum, Mult__u, Mult__uc,
+	Mult__ud, Mult__um, Opc01, Opc02, Opc03, Opc04, Opc05, Opc06,
+	Opc07, Ornot, Pal19, Pal1b, Pal1d, Pal1e, Pal1f, Perr,
+	Pklb, Pkwb, Prefetch, Prefetch_en, Prefetch_m, Prefetch_men, Rc, Ret,
+	Rpcc, Rs, S4addl, S4addq, S4subl, S4subq, S8addl, S8addq,
+	S8subl, S8subq, Sextb, Sextw, Sll, Sqrtf, Sqrtf__c, Sqrtf__s,
+	Sqrtf__sc, Sqrtf__su, Sqrtf__suc, Sqrtf__u, Sqrtf__uc, Sqrtg, Sqrtg__c, Sqrtg__s,
+	Sqrtg__sc, Sqrtg__su, Sqrtg__suc, Sqrtg__u, Sqrtg__uc, Sqrts, Sqrts__c, Sqrts__d,
+	Sqrts__m, Sqrts__su, Sqrts__suc, Sqrts__sud, Sqrts__sui, Sqrts__suic, Sqrts__suid, Sqrts__suim,
+	Sqrts__sum, Sqrts__u, Sqrts__uc, Sqrts__ud, Sqrts__um, Sqrtt, Sqrtt__c, Sqrtt__d,
+	Sqrtt__m, Sqrtt__su, Sqrtt__suc, Sqrtt__sud, Sqrtt__sui, Sqrtt__suic, Sqrtt__suid, Sqrtt__suim,
+	Sqrtt__sum, Sqrtt__u, Sqrtt__uc, Sqrtt__ud, Sqrtt__um, Sra, Srl, Stb,
+	Stf, Stg, Stl, Stl_c, Stq, Stq_c, Stq_u, Sts,
+	Stt, Stw, Subf, Subf__c, Subf__s, Subf__sc, Subf__su, Subf__suc,
+	Subf__u, Subf__uc, Subg, Subg__c, Subg__s, Subg__sc, Subg__su, Subg__suc,
+	Subg__u, Subg__uc, Subl, Subl__v, Subq, Subq__v, Subs, Subs__c,
+	Subs__d, Subs__m, Subs__su, Subs__suc, Subs__sud, Subs__sui, Subs__suic, Subs__suid,
+	Subs__suim, Subs__sum, Subs__u, Subs__uc, Subs__ud, Subs__um, Subt, Subt__c,
+	Subt__d, Subt__m, Subt__su, Subt__suc, Subt__sud, Subt__sui, Subt__suic, Subt__suid,
+	Subt__suim, Subt__sum, Subt__u, Subt__uc, Subt__ud, Subt__um, Trapb, Umulh,
+	Unpkbl, Unpkbw, Wh64, Wh64en, Wmb, Xor, Zap, Zapnot,
+};
+
+const char *op00[1], *op01[1], *op02[1], *op03[1];
+const char *op04[1], *op05[1], *op06[1], *op07[1];
+const char *op08[1], *op09[1], *op0a[1], *op0b[1];
+const char *op0c[1], *op0d[1], *op0e[1], *op0f[1];
+const char *op10[0x80], *op11[0x80], *op12[0x80], *op13[0x80];
+const char *op14[0x800], *op15[0x800], *op16[0x800], *op17[0x800];
+const char *op18[] = { "pal18" }, *op19[1], *op1a[4], *op1b[1];
+const char *op1c[0x80], *op1d[1], *op1e[1], *op1f[1];
+const char *op20[1], *op21[1], *op22[2], *op23[2];
+const char *op24[1], *op25[1], *op26[1], *op27[1];
+const char *op28[2], *op29[2], *op2a[1], *op2b[1];
+const char *op2c[1], *op2d[1], *op2e[1], *op2f[1];
+const char *op30[1], *op31[1], *op32[1], *op33[1];
+const char *op34[1], *op35[1], *op36[1], *op37[1];
+const char *op38[1], *op39[1], *op3a[1], *op3b[1];
+const char *op3c[1], *op3d[1], *op3e[1], *op3f[1];
 
 const char **subops[] =
 {
@@ -667,479 +757,12 @@ const char **subops[] =
 
 void init_table()
 {
-	subops[0x10][0x00] = "addl";
-	subops[0x10][0x02] = "s4addl";
-	subops[0x10][0x09] = "subl";
-	subops[0x10][0x0b] = "s4subl";
-	subops[0x10][0x0f] = "cmpbge";
-	subops[0x10][0x12] = "s8addl";
-	subops[0x10][0x1b] = "s8subl";
-	subops[0x10][0x1d] = "cmpult";
-	subops[0x10][0x20] = "addq";
-	subops[0x10][0x22] = "s4addq";
-	subops[0x10][0x29] = "subq";
-	subops[0x10][0x2b] = "s4subq";
-	subops[0x10][0x2d] = "cmpeq";
-	subops[0x10][0x32] = "s8addq";
-	subops[0x10][0x3b] = "s8subq";
-	subops[0x10][0x3d] = "cmpule";
-	subops[0x10][0x40] = "addl/v";
-	subops[0x10][0x49] = "subl/v";
-	subops[0x10][0x4d] = "cmplt";
-	subops[0x10][0x60] = "addq/v";
-	subops[0x10][0x69] = "subq/v";
-	subops[0x10][0x6d] = "cmple";
-
-	subops[0x11][0x00] = "and";
-	subops[0x11][0x08] = "bic";
-	subops[0x11][0x14] = "cmovlbs";
-	subops[0x11][0x16] = "cmovlbc";
-	subops[0x11][0x20] = "bis";
-	subops[0x11][0x24] = "cmoveq";
-	subops[0x11][0x26] = "cmovne";
-	subops[0x11][0x28] = "ornot";
-	subops[0x11][0x40] = "xor";
-	subops[0x11][0x44] = "cmovlt";
-	subops[0x11][0x46] = "cmovge";
-	subops[0x11][0x48] = "eqv";
-	subops[0x11][0x61] = "amask";
-	subops[0x11][0x64] = "cmovle";
-	subops[0x11][0x66] = "cmovgt";
-	subops[0x11][0x6c] = "implver";
-
-	subops[0x12][0x02] = "mskbl";
-	subops[0x12][0x06] = "extbl";
-	subops[0x12][0x0b] = "insbl";
-	subops[0x12][0x12] = "mskwl";
-	subops[0x12][0x16] = "extwl";
-	subops[0x12][0x1b] = "inswl";
-	subops[0x12][0x22] = "mskll";
-	subops[0x12][0x26] = "extll";
-	subops[0x12][0x2b] = "insll";
-	subops[0x12][0x30] = "zap";
-	subops[0x12][0x31] = "zapnot";
-	subops[0x12][0x32] = "mskql";
-	subops[0x12][0x34] = "srl";
-	subops[0x12][0x36] = "extql";
-	subops[0x12][0x39] = "sll";
-	subops[0x12][0x3b] = "insql";
-	subops[0x12][0x3c] = "sra";
-	subops[0x12][0x52] = "mskwh";
-	subops[0x12][0x57] = "inswh";
-	subops[0x12][0x5a] = "extwh";
-	subops[0x12][0x62] = "msklh";
-	subops[0x12][0x67] = "inslh";
-	subops[0x12][0x6a] = "extlh";
-	subops[0x12][0x72] = "mskqh";
-	subops[0x12][0x77] = "insqh";
-	subops[0x12][0x7a] = "extqh";
-
-	subops[0x13][0x00] = "mull";
-	subops[0x13][0x20] = "mulq";
-	subops[0x13][0x30] = "umulh";
-	subops[0x13][0x40] = "mull/v";
-	subops[0x13][0x60] = "mulq/v";
-
-	subops[0x14][0x004] = "itofs";
-	subops[0x14][0x00a] = "sqrtf/c";
-	subops[0x14][0x00b] = "sqrts/c";
-	subops[0x14][0x014] = "itoff";
-	subops[0x14][0x024] = "itoft";
-	subops[0x14][0x02a] = "sqrtg/c";
-	subops[0x14][0x02b] = "sqrtt/c";
-	subops[0x14][0x04b] = "sqrts/m";
-	subops[0x14][0x06b] = "sqrtt/m";
-	subops[0x14][0x08a] = "sqrtf";
-	subops[0x14][0x08b] = "sqrts";
-	subops[0x14][0x0aa] = "sqrtg";
-	subops[0x14][0x0ab] = "sqrtt";
-	subops[0x14][0x0cb] = "sqrts/d";
-	subops[0x14][0x0eb] = "sqrtt/d";
-	subops[0x14][0x10a] = "sqrtf/uc";
-	subops[0x14][0x10b] = "sqrts/uc";
-	subops[0x14][0x12a] = "sqrtg/uc";
-	subops[0x14][0x12b] = "sqrtt/uc";
-	subops[0x14][0x14b] = "sqrts/um";
-	subops[0x14][0x16b] = "sqrtt/um";
-	subops[0x14][0x18a] = "sqrtf/u";
-	subops[0x14][0x18b] = "sqrts/u";
-	subops[0x14][0x1aa] = "sqrtg/u";
-	subops[0x14][0x1ab] = "sqrtt/u";
-	subops[0x14][0x1cb] = "sqrts/ud";
-	subops[0x14][0x1eb] = "sqrtt/ud";
-	subops[0x14][0x40a] = "sqrtf/sc";
-	subops[0x14][0x42a] = "sqrtg/sc";
-	subops[0x14][0x48a] = "sqrtf/s";
-	subops[0x14][0x4aa] = "sqrtg/s";
-	subops[0x14][0x50a] = "sqrtf/suc";
-	subops[0x14][0x50b] = "sqrts/suc";
-	subops[0x14][0x52a] = "sqrtg/suc";
-	subops[0x14][0x52b] = "sqrtt/suc";
-	subops[0x14][0x54b] = "sqrts/sum";
-	subops[0x14][0x56b] = "sqrtt/sum";
-	subops[0x14][0x58a] = "sqrtf/su";
-	subops[0x14][0x58b] = "sqrts/su";
-	subops[0x14][0x5aa] = "sqrtg/su";
-	subops[0x14][0x5ab] = "sqrtt/su";
-	subops[0x14][0x5cb] = "sqrts/sud";
-	subops[0x14][0x5eb] = "sqrtt/sud";
-	subops[0x14][0x70b] = "sqrts/suic";
-	subops[0x14][0x72b] = "sqrtt/suic";
-	subops[0x14][0x74b] = "sqrts/suim";
-	subops[0x14][0x76b] = "sqrtt/suim";
-	subops[0x14][0x78b] = "sqrts/sui";
-	subops[0x14][0x7ab] = "sqrtt/sui";
-	subops[0x14][0x7cb] = "sqrts/suid";
-	subops[0x14][0x7eb] = "sqrtt/suid";
-
-	subops[0x15][0x000] = "addf/c";
-	subops[0x15][0x001] = "subf/c";
-	subops[0x15][0x002] = "mulf/c";
-	subops[0x15][0x003] = "divf/c";
-	subops[0x15][0x01e] = "cvtdg/c";
-	subops[0x15][0x020] = "addg/c";
-	subops[0x15][0x021] = "subg/c";
-	subops[0x15][0x022] = "mulg/c";
-	subops[0x15][0x023] = "divg/c";
-	subops[0x15][0x02c] = "cvtgf/c";
-	subops[0x15][0x02d] = "cvtgd/c";
-	subops[0x15][0x02f] = "cvtgq/c";
-	subops[0x15][0x03c] = "cvtqf/c";
-	subops[0x15][0x03e] = "cvtqg/c";
-	subops[0x15][0x080] = "addf";
-	subops[0x15][0x081] = "subf";
-	subops[0x15][0x082] = "mulf";
-	subops[0x15][0x083] = "divf";
-	subops[0x15][0x09e] = "cvtdg";
-	subops[0x15][0x0a0] = "addg";
-	subops[0x15][0x0a1] = "subg";
-	subops[0x15][0x0a2] = "mulg";
-	subops[0x15][0x0a3] = "divg";
-	subops[0x15][0x0a5] = "cmpgeq";
-	subops[0x15][0x0a6] = "cmpglt";
-	subops[0x15][0x0a7] = "cmpgle";
-	subops[0x15][0x0ac] = "cvtgf";
-	subops[0x15][0x0ad] = "cvtgd";
-	subops[0x15][0x0af] = "cvtgq";
-	subops[0x15][0x0bc] = "cvtqf";
-	subops[0x15][0x0be] = "cvtqg";
-	subops[0x15][0x100] = "addf/uc";
-	subops[0x15][0x101] = "subf/uc";
-	subops[0x15][0x102] = "mulf/uc";
-	subops[0x15][0x103] = "divf/uc";
-	subops[0x15][0x11e] = "cvtdg/uc";
-	subops[0x15][0x120] = "addg/uc";
-	subops[0x15][0x121] = "subg/uc";
-	subops[0x15][0x122] = "mulg/uc";
-	subops[0x15][0x123] = "divg/uc";
-	subops[0x15][0x12c] = "cvtgf/uc";
-	subops[0x15][0x12d] = "cvtgd/uc";
-	subops[0x15][0x12f] = "cvtgq/vc";
-	subops[0x15][0x180] = "addf/u";
-	subops[0x15][0x181] = "subf/u";
-	subops[0x15][0x182] = "mulf/u";
-	subops[0x15][0x183] = "divf/u";
-	subops[0x15][0x19e] = "cvtdg/u";
-	subops[0x15][0x1a0] = "addg/u";
-	subops[0x15][0x1a1] = "subg/u";
-	subops[0x15][0x1a2] = "mulg/u";
-	subops[0x15][0x1a3] = "divg/u";
-	subops[0x15][0x1ac] = "cvtgf/u";
-	subops[0x15][0x1ad] = "cvtgd/u";
-	subops[0x15][0x1af] = "cvtgq/v";
-	subops[0x15][0x400] = "addf/sc";
-	subops[0x15][0x401] = "subf/sc";
-	subops[0x15][0x402] = "mulf/sc";
-	subops[0x15][0x403] = "divf/sc";
-	subops[0x15][0x41e] = "cvtdg/sc";
-	subops[0x15][0x420] = "addg/sc";
-	subops[0x15][0x421] = "subg/sc";
-	subops[0x15][0x422] = "mulg/sc";
-	subops[0x15][0x423] = "divg/sc";
-	subops[0x15][0x42c] = "cvtgf/sc";
-	subops[0x15][0x42d] = "cvtgd/sc";
-	subops[0x15][0x42f] = "cvtgq/sc";
-	subops[0x15][0x480] = "addf/s";
-	subops[0x15][0x481] = "subf/s";
-	subops[0x15][0x482] = "mulf/s";
-	subops[0x15][0x483] = "divf/s";
-	subops[0x15][0x49e] = "cvtdg/s";
-	subops[0x15][0x4a0] = "addg/s";
-	subops[0x15][0x4a1] = "subg/s";
-	subops[0x15][0x4a2] = "mulg/s";
-	subops[0x15][0x4a3] = "divg/s";
-	subops[0x15][0x4a5] = "cmpgeq/s";
-	subops[0x15][0x4a6] = "cmpglt/s";
-	subops[0x15][0x4a7] = "cmpgle/s";
-	subops[0x15][0x4ac] = "cvtgf/s";
-	subops[0x15][0x4ad] = "cvtgd/s";
-	subops[0x15][0x4af] = "cvtgq/s";
-	subops[0x15][0x500] = "addf/suc";
-	subops[0x15][0x501] = "subf/suc";
-	subops[0x15][0x502] = "mulf/suc";
-	subops[0x15][0x503] = "divf/suc";
-	subops[0x15][0x51e] = "cvtdg/suc";
-	subops[0x15][0x520] = "addg/suc";
-	subops[0x15][0x521] = "subg/suc";
-	subops[0x15][0x522] = "mulg/suc";
-	subops[0x15][0x523] = "divg/suc";
-	subops[0x15][0x52c] = "cvtgf/suc";
-	subops[0x15][0x52d] = "cvtgd/suc";
-	subops[0x15][0x52f] = "cvtgq/svc";
-	subops[0x15][0x580] = "addf/su";
-	subops[0x15][0x581] = "subf/su";
-	subops[0x15][0x582] = "mulf/su";
-	subops[0x15][0x583] = "divf/su";
-	subops[0x15][0x59e] = "cvtdg/su";
-	subops[0x15][0x5a0] = "addg/su";
-	subops[0x15][0x5a1] = "subg/su";
-	subops[0x15][0x5a2] = "mulg/su";
-	subops[0x15][0x5a3] = "divg/su";
-	subops[0x15][0x5ac] = "cvtgf/su";
-	subops[0x15][0x5ad] = "cvtgd/su";
-	subops[0x15][0x5af] = "cvtgq/sv";
-
-	subops[0x16][0x000] = "adds/c";
-	subops[0x16][0x001] = "subs/c";
-	subops[0x16][0x002] = "muls/c";
-	subops[0x16][0x003] = "divs/c";
-	subops[0x16][0x020] = "addt/c";
-	subops[0x16][0x021] = "subt/c";
-	subops[0x16][0x022] = "mult/c";
-	subops[0x16][0x023] = "divt/c";
-	subops[0x16][0x02c] = "cvtts/c";
-	subops[0x16][0x02f] = "cvttq/c";
-	subops[0x16][0x03c] = "cvtqs/c";
-	subops[0x16][0x03e] = "cvtqt/c";
-	subops[0x16][0x040] = "adds/m";
-	subops[0x16][0x041] = "subs/m";
-	subops[0x16][0x042] = "muls/m";
-	subops[0x16][0x043] = "divs/m";
-	subops[0x16][0x060] = "addt/m";
-	subops[0x16][0x061] = "subt/m";
-	subops[0x16][0x062] = "mult/m";
-	subops[0x16][0x063] = "divt/m";
-	subops[0x16][0x06c] = "cvtts/m";
-	subops[0x16][0x06f] = "cvttq/m";
-	subops[0x16][0x07c] = "cvtqs/m";
-	subops[0x16][0x07e] = "cvtqt/m";
-	subops[0x16][0x080] = "adds";
-	subops[0x16][0x081] = "subs";
-	subops[0x16][0x082] = "muls";
-	subops[0x16][0x083] = "divs";
-	subops[0x16][0x0a0] = "addt";
-	subops[0x16][0x0a1] = "subt";
-	subops[0x16][0x0a2] = "mult";
-	subops[0x16][0x0a3] = "divt";
-	subops[0x16][0x0a4] = "cmptun";
-	subops[0x16][0x0a5] = "cmpteq";
-	subops[0x16][0x0a6] = "cmptlt";
-	subops[0x16][0x0a7] = "cmptle";
-	subops[0x16][0x0ac] = "cvtts";
-	subops[0x16][0x0af] = "cvttq";
-	subops[0x16][0x0bc] = "cvtqs";
-	subops[0x16][0x0be] = "cvtqt";
-	subops[0x16][0x0c0] = "adds/d";
-	subops[0x16][0x0c1] = "subs/d";
-	subops[0x16][0x0c2] = "muls/d";
-	subops[0x16][0x0c3] = "divs/d";
-	subops[0x16][0x0e0] = "addt/d";
-	subops[0x16][0x0e1] = "subt/d";
-	subops[0x16][0x0e2] = "mult/d";
-	subops[0x16][0x0e3] = "divt/d";
-	subops[0x16][0x0ec] = "cvtts/d";
-	subops[0x16][0x0ef] = "cvttq/d";
-	subops[0x16][0x0fc] = "cvtqs/d";
-	subops[0x16][0x0fe] = "cvtqt/d";
-	subops[0x16][0x100] = "adds/uc";
-	subops[0x16][0x101] = "subs/uc";
-	subops[0x16][0x102] = "muls/uc";
-	subops[0x16][0x103] = "divs/uc";
-	subops[0x16][0x120] = "addt/uc";
-	subops[0x16][0x121] = "subt/uc";
-	subops[0x16][0x122] = "mult/uc";
-	subops[0x16][0x123] = "divt/uc";
-	subops[0x16][0x12c] = "cvtts/uc";
-	subops[0x16][0x12f] = "cvttq/vc";
-	subops[0x16][0x140] = "adds/um";
-	subops[0x16][0x141] = "subs/um";
-	subops[0x16][0x142] = "muls/um";
-	subops[0x16][0x143] = "divs/um";
-	subops[0x16][0x160] = "addt/um";
-	subops[0x16][0x161] = "subt/um";
-	subops[0x16][0x162] = "mult/um";
-	subops[0x16][0x163] = "divt/um";
-	subops[0x16][0x16c] = "cvtts/um";
-	subops[0x16][0x16f] = "cvttq/vm";
-	subops[0x16][0x180] = "adds/u";
-	subops[0x16][0x181] = "subs/u";
-	subops[0x16][0x182] = "muls/u";
-	subops[0x16][0x183] = "divs/u";
-	subops[0x16][0x1a0] = "addt/u";
-	subops[0x16][0x1a1] = "subt/u";
-	subops[0x16][0x1a2] = "mult/u";
-	subops[0x16][0x1a3] = "divt/u";
-	subops[0x16][0x1ac] = "cvtts/u";
-	subops[0x16][0x1af] = "cvttq/v";
-	subops[0x16][0x1c0] = "adds/ud";
-	subops[0x16][0x1c1] = "subs/ud";
-	subops[0x16][0x1c2] = "muls/ud";
-	subops[0x16][0x1c3] = "divs/ud";
-	subops[0x16][0x1e0] = "addt/ud";
-	subops[0x16][0x1e1] = "subt/ud";
-	subops[0x16][0x1e2] = "mult/ud";
-	subops[0x16][0x1e3] = "divt/ud";
-	subops[0x16][0x1ec] = "cvtts/ud";
-	subops[0x16][0x1ef] = "cvttq/vd";
-	subops[0x16][0x2ac] = "cvtst";
-	subops[0x16][0x500] = "adds/suc";
-	subops[0x16][0x501] = "subs/suc";
-	subops[0x16][0x502] = "muls/suc";
-	subops[0x16][0x503] = "divs/suc";
-	subops[0x16][0x520] = "addt/suc";
-	subops[0x16][0x521] = "subt/suc";
-	subops[0x16][0x522] = "mult/suc";
-	subops[0x16][0x523] = "divt/suc";
-	subops[0x16][0x52c] = "cvtts/suc";
-	subops[0x16][0x52f] = "cvttq/svc";
-	subops[0x16][0x540] = "adds/sum";
-	subops[0x16][0x541] = "subs/sum";
-	subops[0x16][0x542] = "muls/sum";
-	subops[0x16][0x543] = "divs/sum";
-	subops[0x16][0x560] = "addt/sum";
-	subops[0x16][0x561] = "subt/sum";
-	subops[0x16][0x562] = "mult/sum";
-	subops[0x16][0x563] = "divt/sum";
-	subops[0x16][0x56c] = "cvtts/sum";
-	subops[0x16][0x56f] = "cvttq/svm";
-	subops[0x16][0x580] = "adds/su";
-	subops[0x16][0x581] = "subs/su";
-	subops[0x16][0x582] = "muls/su";
-	subops[0x16][0x583] = "divs/su";
-	subops[0x16][0x5a0] = "addt/su";
-	subops[0x16][0x5a1] = "subt/su";
-	subops[0x16][0x5a2] = "mult/su";
-	subops[0x16][0x5a3] = "divt/su";
-	subops[0x16][0x5a4] = "cmptun/su";
-	subops[0x16][0x5a5] = "cmpteq/su";
-	subops[0x16][0x5a6] = "cmptlt/su";
-	subops[0x16][0x5a7] = "cmptle/su";
-	subops[0x16][0x5ac] = "cvtts/su";
-	subops[0x16][0x5af] = "cvttq/sv";
-	subops[0x16][0x5c0] = "adds/sud";
-	subops[0x16][0x5c1] = "subs/sud";
-	subops[0x16][0x5c2] = "muls/sud";
-	subops[0x16][0x5c3] = "divs/sud";
-	subops[0x16][0x5e0] = "addt/sud";
-	subops[0x16][0x5e1] = "subt/sud";
-	subops[0x16][0x5e2] = "mult/sud";
-	subops[0x16][0x5e3] = "divt/sud";
-	subops[0x16][0x5ec] = "cvtts/sud";
-	subops[0x16][0x5ef] = "cvttq/svd";
-	subops[0x16][0x6ac] = "cvtst/s";
-	subops[0x16][0x700] = "adds/suic";
-	subops[0x16][0x701] = "subs/suic";
-	subops[0x16][0x702] = "muls/suic";
-	subops[0x16][0x703] = "divs/suic";
-	subops[0x16][0x720] = "addt/suic";
-	subops[0x16][0x721] = "subt/suic";
-	subops[0x16][0x722] = "mult/suic";
-	subops[0x16][0x723] = "divt/suic";
-	subops[0x16][0x72c] = "cvtts/suic";
-	subops[0x16][0x72f] = "cvttq/svic";
-	subops[0x16][0x73c] = "cvtqs/suic";
-	subops[0x16][0x73e] = "cvtqt/suic";
-	subops[0x16][0x740] = "adds/suim";
-	subops[0x16][0x741] = "subs/suim";
-	subops[0x16][0x742] = "muls/suim";
-	subops[0x16][0x743] = "divs/suim";
-	subops[0x16][0x760] = "addt/suim";
-	subops[0x16][0x761] = "subt/suim";
-	subops[0x16][0x762] = "mult/suim";
-	subops[0x16][0x763] = "divt/suim";
-	subops[0x16][0x76c] = "cvtts/suim";
-	subops[0x16][0x76f] = "cvttq/svim";
-	subops[0x16][0x77c] = "cvtqs/suim";
-	subops[0x16][0x77e] = "cvtqt/suim";
-	subops[0x16][0x780] = "adds/sui";
-	subops[0x16][0x781] = "subs/sui";
-	subops[0x16][0x782] = "muls/sui";
-	subops[0x16][0x783] = "divs/sui";
-	subops[0x16][0x7a0] = "addt/sui";
-	subops[0x16][0x7a1] = "subt/sui";
-	subops[0x16][0x7a2] = "mult/sui";
-	subops[0x16][0x7a3] = "divt/sui";
-	subops[0x16][0x7ac] = "cvtts/sui";
-	subops[0x16][0x7af] = "cvttq/svi";
-	subops[0x16][0x7bc] = "cvtqs/sui";
-	subops[0x16][0x7be] = "cvtqt/sui";
-	subops[0x16][0x7c0] = "adds/suid";
-	subops[0x16][0x7c1] = "subs/suid";
-	subops[0x16][0x7c2] = "muls/suid";
-	subops[0x16][0x7c3] = "divs/suid";
-	subops[0x16][0x7e0] = "addt/suid";
-	subops[0x16][0x7e1] = "subt/suid";
-	subops[0x16][0x7e2] = "mult/suid";
-	subops[0x16][0x7e3] = "divt/suid";
-	subops[0x16][0x7ec] = "cvtts/suid";
-	subops[0x16][0x7ef] = "cvttq/svid";
-	subops[0x16][0x7fc] = "cvtqs/suid";
-	subops[0x16][0x7fe] = "cvtqt/suid";
-
-	subops[0x17][0x010] = "cvtlq";
-	subops[0x17][0x020] = "cpys";
-	subops[0x17][0x021] = "cpysn";
-	subops[0x17][0x022] = "cpyse";
-	subops[0x17][0x024] = "mt_fpcr";
-	subops[0x17][0x025] = "mf_fpcr";
-	subops[0x17][0x02a] = "fcmoveq";
-	subops[0x17][0x02b] = "fcmovne";
-	subops[0x17][0x02c] = "fcmovlt";
-	subops[0x17][0x02d] = "fcmovge";
-	subops[0x17][0x02e] = "fcmovle";
-	subops[0x17][0x02f] = "fcmovgt";
-	subops[0x17][0x030] = "cvtql";
-	subops[0x17][0x130] = "cvtql/v";
-	subops[0x17][0x530] = "cvtql/sv";
-
-	//subops[0x18][0x0000] = "trapb";
-	//subops[0x18][0x0400] = "excb";
-	//subops[0x18][0x4000] = "mb";
-	//subops[0x18][0x4400] = "wmb";
-	//subops[0x18][0x8000] = "fetch";
-	//subops[0x18][0xa000] = "fetch_m";
-	//subops[0x18][0xc000] = "rpcc";
-	//subops[0x18][0xe000] = "rc";
-	//subops[0x18][0xe800] = "ecb";
-	//subops[0x18][0xf000] = "rs";
-	//subops[0x18][0xf800] = "wh64";
-	//subops[0x18][0xfc00] = "wh64en";
-
-	subops[0x1a][0x0] = "jmp";
-	subops[0x1a][0x1] = "jsr";
-	subops[0x1a][0x2] = "ret";
-	subops[0x1a][0x3] = "jsr_coroutine";
-
-	subops[0x1c][0x00] = "sextb";
-	subops[0x1c][0x01] = "sextw";
-	subops[0x1c][0x30] = "ctpop";
-	subops[0x1c][0x31] = "perr";
-	subops[0x1c][0x32] = "ctlz";
-	subops[0x1c][0x33] = "cttz";
-	subops[0x1c][0x34] = "unpkbw";
-	subops[0x1c][0x35] = "unpkbl";
-	subops[0x1c][0x36] = "pkwb";
-	subops[0x1c][0x37] = "pklb";
-	subops[0x1c][0x38] = "minsb8";
-	subops[0x1c][0x39] = "minsw4";
-	subops[0x1c][0x3a] = "minub8";
-	subops[0x1c][0x3b] = "minuw4";
-	subops[0x1c][0x3c] = "maxub8";
-	subops[0x1c][0x3d] = "maxuw4";
-	subops[0x1c][0x3e] = "maxsb8";
-	subops[0x1c][0x3f] = "maxsw4";
-	subops[0x1c][0x70] = "ftoit";
-	subops[0x1c][0x78] = "ftois";
+	int i;
+	for (i = 0; i < 520; i++)
+	{
+		int op = (int)opcodes[i], h = op >> 16;
+		if (h != 0x18) subops[h][op & 0xffff] = opnames[i];
+	}
 }
 
 enum Op get_op(uint32_t code)
