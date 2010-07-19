@@ -726,6 +726,8 @@ enum Op opcodes[] =
 	Unpkbl, Unpkbw, Wh64, Wh64en, Wmb, Xor, Zap, Zapnot,
 };
 
+const int oplen = sizeof(opnames) / sizeof(const char *);
+
 const char *op00[1], *op01[1], *op02[1], *op03[1];
 const char *op04[1], *op05[1], *op06[1], *op07[1];
 const char *op08[1], *op09[1], *op0a[1], *op0b[1];
@@ -758,7 +760,7 @@ const char **subops[] =
 void init_table()
 {
 	int i;
-	for (i = 0; i < 520; i++)
+	for (i = 0; i < oplen; i++)
 	{
 		int op = (int)opcodes[i], h = op >> 16;
 		if (h != 0x18) subops[h][op & 0xffff] = opnames[i];
