@@ -834,7 +834,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 				if (ra == 31 && op == Br)
 					fprintf(f, "br %s", sdisp);
 				else
-					fprintf(f, "%s %s,%s", mne, regname[ra], sdisp);
+					fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
 				return op;
 			}
 		case Mem:
@@ -1148,7 +1148,7 @@ int main()
 				for (j = 0; j < text_size; j += 4)
 				{
 					enum Op op;
-					fprintf(f, "%08x: ", (long)(text_addr + j));
+					fprintf(f, "0x%08x: ", (long)(text_addr + j));
 					op = disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
 					fprintf(f, "\n");
 					if (op == Ret) fprintf(f, "\n");
