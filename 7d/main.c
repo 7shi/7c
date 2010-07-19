@@ -1170,6 +1170,7 @@ enum Op get_op(uint32_t code)
 				case 0xe800: return Ecb;
 				case 0xf800: return Wh64;
 				case 0xfc00: return Wh64en;
+				default: return UNDEF;
 			}
 			break;
 		case 0x1a: subop = (code >> 14) & 3; break;
@@ -1191,7 +1192,10 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 	switch (formats[opc])
 	{
 		default:
-			fprintf(f, "%s %08x", mne, code & 0x03ffffff);
+			if (op == UNDEF)
+				fprintf(f, "pal%02x %08x", opc, code & 0x03ffffff);
+			else
+				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return;
 		case Bra:
 			{
