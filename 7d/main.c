@@ -1184,7 +1184,7 @@ const char *get_mnemonic(enum Op op)
 	return op == UNDEF ? "UNDEF" : subops[((int)op) >>16][((int)op) & 0xffff];
 }
 
-void disassemble(void *f, uint64_t addr, uint32_t code)
+enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 {
 	enum Op op = get_op(code);
 	int opc = (int)(code >> 26);
@@ -1196,7 +1196,7 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 				fprintf(f, "pal%02x %08x", opc, code & 0x03ffffff);
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
-			return;
+			return op;
 		case Bra:
 			{
 				int ra = (int)((code >> 21) & 31);
@@ -1210,7 +1210,7 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 					fprintf(f, "br %s", sdisp);
 				else
 					fprintf(f, "%s %s,%s", mne, regname[ra], sdisp);
-				return;
+				return op;
 			}
 		case Mem:
 			{
@@ -1225,19 +1225,19 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 				if (rb == 31 && op == Lda)
 				{
 					fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
-					return;
+					return op;
 				}
 				else if (rb == 31 && op == Ldah)
 				{
 					fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
-					return;
+					return op;
 				}
 				else if (ra == 31)
 				{
 					if (disp == 0 && op == Ldq_u)
 					{
 						fprintf(f, "unop");
-						return;
+						return op;
 					}
 					else
 					{
@@ -1252,27 +1252,27 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 						if (pse)
 						{
 							fprintf(f, "%s %s", pse, args);
-							return;
+							return op;
 						}
 					}
 				}
 				fprintf(f, "%s %s,%s", mne, regname[ra], args);
-				return;
+				return op;
 			}
 		case Mfc:
 			{
 				int ra = (int)((code >> 21) & 31);
 				int rb = (int)((code >> 16) & 31);
 				fprintf(f, "%s %s,%s", mne, regname[ra], regname[rb]);
-				return;
+				return op;
 			}
 		case Mbr:
 			{
 				int ra = (int)((code >> 21) & 31);
 				int rb = (int)((code >> 16) & 31);
 				int disp = (int)(code & 0x3fff);
-				fprintf(f, "%s %s,(%s),0x%04x", mne, regname[ra], regname[rb], disp);
-				return;
+				fprintf(f, "%s %s,%s,0x%04x", mne, regname[ra], regname[rb], disp);
+				return op;
 			}
 		case Opr:
 			{
@@ -1296,12 +1296,12 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 							if (rb == 31 && rc == 31)
 							{
 								fprintf(f, "nop");
-								return;
+								return op;
 							}
 							else if (rb == 31)
 							{
 								fprintf(f, "clr %s", regname[rc]);
-								return;
+								return op;
 							}
 							else
 								pse = "mov";
@@ -1316,11 +1316,11 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 					if (pse)
 					{
 						fprintf(f, "%s %s,%s", pse, arg2, regname[rc]);
-						return;
+						return op;
 					}
 				}
 				fprintf(f, "%s %s,%s,%s", mne, regname[ra], arg2, regname[rc]);
-				return;
+				return op;
 			}
 		case F_P:
 			{
@@ -1377,18 +1377,19 @@ void disassemble(void *f, uint64_t addr, uint32_t code)
 					{
 						case 0:
 							fprintf(f, "%s", pse);
-							return;
+							return op;
 						case 1:
 							fprintf(f, "%s f%d", pse, fc);
-							return;
+							return op;
 						case 2:
 							fprintf(f, "%s f%d,f%d", pse, fb, fc);
-							return;
+							return op;
 					}
 				fprintf(f, "%s f%d,f%d,f%d", mne, fa, fb, fc);
-				return;
+				return op;
 			}
 	}
+	return UNDEF;
 }
 
 uint64_t text_addr, text_size;
@@ -1518,12 +1519,14 @@ int main()
 			if (f)
 			{
 				int j;
-				fprintf(f, "org 0x%08x\n", text_addr);
+				fprintf(f, "org 0x%08x\n\n", text_addr);
 				for (j = 0; j < text_size; j += 4)
 				{
+					enum Op op;
 					fprintf(f, "%08x: ", (long)(text_addr + j));
-					disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
+					op = disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
 					fprintf(f, "\n");
+					if (op == Ret) fprintf(f, "\n");
 				}
 				fclose(f);
 			}
