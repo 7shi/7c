@@ -1180,7 +1180,7 @@ enum Op get_op(uint32_t code)
 
 const char *get_mnemonic(enum Op op)
 {
-	return subops[((int)op) >>16][((int)op) & 0xffff];
+	return op == UNDEF ? "UNDEF" : subops[((int)op) >>16][((int)op) & 0xffff];
 }
 
 void disassemble(void *f, uint64_t addr, uint32_t code)
