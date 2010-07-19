@@ -832,7 +832,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 				else
 					sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
 				if (ra == 31 && op == Br)
-					fprintf(f, "br %s", sdisp);
+					fprintf(f, "br 0x%s", sdisp);
 				else
 					fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
 				return op;
