@@ -1398,7 +1398,7 @@ int read_text_file(void *f)
 {
 	int i;
 	char buf[64], shstrtab[256];
-	uint16_t e_shstrndx, e_shentsize, e_shnum;
+	uint16_t e_machine, e_shstrndx, e_shentsize, e_shnum;
 	uint64_t e_shoff, stroff, strsize, textoff = 0;
 
 	if (fread(buf, 64, 1, f) == 0)
@@ -1422,11 +1422,17 @@ int read_text_file(void *f)
 		return 0;
 	}
 
+	e_machine = *(uint16_t *)&buf[18];
 	e_shoff = *(uint64_t *)&buf[40];
 	e_shentsize = *(uint16_t *)&buf[58];
 	e_shnum = *(uint16_t *)&buf[60];
 	e_shstrndx = *(uint16_t *)&buf[62];
 
+	if (e_machine != 0x9026)
+	{
+		printf("e_machine != EM_ALPHA_EXP\n");
+		return 0;
+	}
 	if (e_shoff == 0)
 	{
 		printf("e_shoff == 0\n");
