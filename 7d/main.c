@@ -1518,6 +1518,7 @@ int main()
 			if (f)
 			{
 				int j;
+				fprintf(f, "org 0x%08x\n", text_addr);
 				for (j = 0; j < text_size; j += 4)
 				{
 					fprintf(f, "%08x: ", (long)(text_addr + j));
