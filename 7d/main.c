@@ -881,6 +881,11 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 						}
 					}
 				}
+				else if (op == Ldt || op == Stt)
+				{
+					fprintf(f, "%s f%d,%s", mne, ra, args);
+					return op;
+				}
 				fprintf(f, "%s %s,%s", mne, regname[ra], args);
 				return op;
 			}

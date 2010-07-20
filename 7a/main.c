@@ -918,6 +918,11 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 						}
 					}
 				}
+				else if (op == Ldt || op == Stt)
+				{
+					fprintf(f, "%s f%d,%s", mne, ra, args);
+					return op;
+				}
 				fprintf(f, "%s %s,%s", mne, regname[ra], args);
 				return op;
 			}
@@ -1066,6 +1071,7 @@ int main()
 	init_table();
 	for (i = 1; i <= 6; i++)
 	{
+		void *f;
 		char src[32] = "../Test/", dst[32];
 		char num[8] = "x";
 		num[0] = '0' + i;
@@ -1074,8 +1080,13 @@ int main()
 		strcat(src, ".asm");
 		strcat(dst, ".out");
 		printf("%s -> %s\n", src, dst);
-		//printf("text_addr: 0x%08x\n", text_addr);
-		//printf("text_size: 0x%08x\n", text_size);
+		f = fopen(src, "r");
+		if (f)
+		{
+			fclose(f);
+			printf("text_addr: 0x%08x\n", text_addr);
+			printf("text_size: 0x%08x\n", text_size);
+		}
 	}
 	return 0;
 }
