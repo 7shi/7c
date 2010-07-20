@@ -1068,17 +1068,23 @@ char text_buf[65536];
 
 int last_ch = -1;
 
+int read_char(void *f)
+{
+	int ret = last_ch;
+	if (ret == -1) return fgetc(f);
+	last_ch = -1;
+	return ret;
+}
+
 void skip_line(void *f)
 {
-	int ch = last_ch;
-	if (ch == -1) ch = fgetc(f); else last_ch = -1;
+	int ch = read_char(f);
 	while (ch != -1 && ch != '\n') ch = fgetc(f);
 }
 
 void read_token(void *f, char *buf)
 {
-	int p = 0, ch = last_ch;
-	if (ch == -1) ch = fgetc(f); else last_ch = -1;
+	int p = 0, ch = read_char(f);
 	for (;; ch = fgetc(f))
 	{
 		if (ch == -1 || ch == '\n')
