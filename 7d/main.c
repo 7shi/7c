@@ -843,10 +843,18 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 				int rb = (int)((code >> 16) & 31);
 				int disp = (int)(code & 0xffff);
 				char args[32];
-				if (disp < 0x8000)
+				if (disp < 10)
+					sprintf(args, "%d(%s)", disp, regname[rb]);
+				else if (disp < 0x8000)
 					sprintf(args, "0x%x(%s)", disp, regname[rb]);
 				else
-					sprintf(args, "-0x%x(%s)", 0x10000 - disp, regname[rb]);
+				{
+					int disp2 = 0x10000 - disp;
+					if (disp2 < 10)
+						sprintf(args, "-%d(%s)", disp2, regname[rb]);
+					else
+						sprintf(args, "-0x%x(%s)", disp2, regname[rb]);
+				}
 				if (op == Ldt || op == Stt)
 				{
 					fprintf(f, "%s f%d,%s", mne, ra, args);
