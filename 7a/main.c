@@ -884,7 +884,12 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 					sprintf(args, "0x%x(%s)", disp, regname[rb]);
 				else
 					sprintf(args, "-0x%x(%s)", 0x10000 - disp, regname[rb]);
-				if (rb == 31 && op == Lda)
+				if (op == Ldt || op == Stt)
+				{
+					fprintf(f, "%s f%d,%s", mne, ra, args);
+					return op;
+				}
+				else if (rb == 31 && op == Lda)
 				{
 					fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
 					return op;
@@ -917,11 +922,6 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 							return op;
 						}
 					}
-				}
-				else if (op == Ldt || op == Stt)
-				{
-					fprintf(f, "%s f%d,%s", mne, ra, args);
-					return op;
 				}
 				fprintf(f, "%s %s,%s", mne, regname[ra], args);
 				return op;
