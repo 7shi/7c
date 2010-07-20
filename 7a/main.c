@@ -1068,6 +1068,16 @@ char text_buf[65536];
 
 int last_ch = -1;
 
+enum Token
+{
+	EOF, EndL, Int, Hex, Oct, Symbol, Label, Sign, Addr
+};
+
+const char *tokenName[] =
+{
+	"eof", "endl", "int", "hex", "oct", "symbol", "label", "sign", "addr"
+};
+
 int read_char(void *f)
 {
 	int ret = last_ch;
@@ -1082,28 +1092,129 @@ void skip_line(void *f)
 	while (ch != -1 && ch != '\n') ch = fgetc(f);
 }
 
-void read_token(void *f, char *buf)
+int is_num(int ch) { return '0' <= ch && ch <= '9'; }
+int is_ualpha(int ch) { return 'A' <= ch && ch <= 'Z'; }
+int is_lalpha(int ch) { return 'a' <= ch && ch <= 'z'; }
+int is_alpha(int ch) { return is_ualpha(ch) || is_lalpha(ch); }
+int is_alphanum(int ch) { return is_alpha(ch) || is_num(ch); }
+int is_letter(int ch) { return ch == '_' || is_alphanum(ch); }
+int is_oct(int ch) { return '0' <= ch && ch <= '7'; }
+int is_hex(int ch) { return is_num(ch) || ('A' <= ch && ch <= 'F') || ('a' <= ch && ch <= 'f'); }
+
+void read_chars(void *f, char *buf, int len, int(*cond)(int))
 {
 	int p = 0, ch = read_char(f);
 	for (;; ch = fgetc(f))
 	{
-		if (ch == -1 || ch == '\n')
+		if (cond(ch))
+		{
+			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
+		}
+		else
+		{
+			if (p < len) buf[p] = 0;
+			last_ch = ch;
+			return;
+		}
+	}
+}
+
+enum Token read_token(void *f, char *buf, int len)
+{
+	int p = 0, ch = read_char(f);
+	for (;; ch = fgetc(f))
+	{
+		if (ch == -1)
+		{
+			if (p < len) buf[p] = 0;
+			return EOF;
+		}
+		else if (ch == '\n')
 			break;
 		else if (ch == ';')
 		{
 			skip_line(f);
 			break;
 		}
-		else if (ch < 32)
+		else if (ch <= ' ')
 		{
 			/* skip */
 		}
+		else if (ch == '0')
+		{
+			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
+			ch = fgetc(f);
+			if ('0' <= ch && ch <= '9')
+			{
+				last_ch = ch;
+				read_chars(f, buf + p, len - p, is_oct);
+				return Oct;
+			}
+			else if (ch == 'x')
+			{
+				if (p < len) buf[p++] = p < len - 1 ? ch : 0;
+				read_chars(f, buf + p, len - p, is_hex);
+				ch = last_ch;
+				for (;; ch = fgetc(f))
+				{
+					if (ch == -1 || ch == '\n' || ch > ' ')
+					{
+						last_ch = ch;
+						break;
+					}
+				}
+				if (last_ch == ':')
+				{
+					last_ch = -1;
+					return Addr;
+				}
+				return Hex;
+			}
+			else
+			{
+				last_ch = ch;
+				if (p < len) buf[p] = 0;
+				return Int;
+			}
+		}
+		else if (is_num(ch))
+		{
+			last_ch = ch;
+			read_chars(f, buf, len, is_num);
+			return Int;
+		}
+		else if (is_letter(ch))
+		{
+			last_ch = ch;
+			read_chars(f, buf, len, is_letter);
+			ch = last_ch;
+			for (;; ch = fgetc(f))
+			{
+				if (ch == -1 || ch == '\n' || ch > ' ')
+				{
+					last_ch = ch;
+					break;
+				}
+			}
+			if (last_ch == ':')
+			{
+				last_ch = -1;
+				return Label;
+			}
+			return Symbol;
+		}
 		else
 		{
-			if (p < 31) buf[p++] = ch;
+			if (p < len)
+			{
+				buf[p++] = p < len - 1 ? ch : 0;
+				if (p < len) buf[p] = 0;
+			}
+			return Sign;
 		}
 	}
-	buf[p] = 0;
+	if (p < len) buf[p] = 0;
+	return EndL;
 }
 
 int main()
@@ -1124,6 +1235,13 @@ int main()
 		f = fopen(src, "r");
 		if (f)
 		{
+			for (;;)
+			{
+				char buf[32];
+				enum Token token = read_token(f, buf, sizeof(buf));
+				if (token == EOF) break;
+				printf("[%s]%s\n", tokenName[(int)token], buf);
+			}
 			fclose(f);
 			printf("text_addr: 0x%08x\n", text_addr);
 			printf("text_size: 0x%08x\n", text_size);
