@@ -6,6 +6,7 @@ int fclose(void *);
 int fread(void *, int, int, void *);
 int fwrite(const void *, int, int, void *);
 int fseek(void *, int, int);
+int fgetc(void *);
 int strcmp(const char *, const char *);
 char *strcpy(char *, const char *);
 char *strcat(char *, const char *);
@@ -1064,6 +1065,40 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 
 uint64_t text_addr, text_size;
 char text_buf[65536];
+
+int last_ch = -1;
+
+void skip_line(void *f)
+{
+	int ch = last_ch;
+	if (ch == -1) ch = fgetc(f); else last_ch = -1;
+	while (ch != -1 && ch != '\n') ch = fgetc(f);
+}
+
+void read_token(void *f, char *buf)
+{
+	int p = 0, ch = last_ch;
+	if (ch == -1) ch = fgetc(f); else last_ch = -1;
+	for (;; ch = fgetc(f))
+	{
+		if (ch == -1 || ch == '\n')
+			break;
+		else if (ch == ';')
+		{
+			skip_line(f);
+			break;
+		}
+		else if (ch < 32)
+		{
+			/* skip */
+		}
+		else
+		{
+			if (p < 31) buf[p++] = ch;
+		}
+	}
+	buf[p] = 0;
+}
 
 int main()
 {
