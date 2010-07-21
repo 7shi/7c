@@ -759,40 +759,31 @@ const char **subops[] =
 	op38, op39, op3a, op3b, op3c, op3d, op3e, op3f,
 };
 
-int search_op_internal(const char *mne, int start, int end)
+int search_string(const char **list, const char *target, int start, int end)
 {
 	if (end - start < 4)
 	{
 		int i;
 		for (i = start; i <= end; i++)
-			if (strcmp(mne, opnames[i]) == 0) return i;
+			if (strcmp(target, list[i]) == 0) return i;
 	}
 	else
 	{
 		int center = (start + end) / 2;
-		int cmp = strcmp(mne, opnames[center]);
+		int cmp = strcmp(target, list[center]);
 		if (cmp == 0)
 			return center;
 		else if (cmp < 0)
-			return search_op_internal(mne, start, center - 1);
+			return search_string(list, target, start, center - 1);
 		else
-			return search_op_internal(mne, center + 1, end);
+			return search_string(list, target, center + 1, end);
 	}
 	return -1;
 }
 
 int search_op(const char *mne)
 {
-	char buf[32];
-	int i;
-	for (i = 0; i < 32; i++)
-	{
-		char ch = i == 31 ? 0 : mne[i];
-		if ('A' <= ch && ch <= 'Z') ch += 32;
-		buf[i] = ch;
-		if (ch == 0) break;
-	}
-	return search_op_internal(buf, 0, oplen - 1);
+	return search_string(opnames, mne, 0, oplen - 1);
 }
 
 void init_table()
@@ -1073,31 +1064,40 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 
 uint64_t text_addr, text_size;
 char text_buf[65536];
+int line;
 
 int last_ch = -1;
 
 enum Token
 {
-	EOF, EndL, Int, Hex, Oct, Symbol, Label, Sign, Addr
+	EndF, EndL, Int, Hex, Oct, Symbol, Label, Sign, Addr
 };
 
 const char *tokenName[] =
 {
-	"eof", "endl", "int", "hex", "oct", "symbol", "label", "sign", "addr"
+	"endf", "endl", "int", "hex", "oct", "symbol", "label", "sign", "addr"
 };
 
 int read_char(void *f)
 {
 	int ret = last_ch;
-	if (ret == -1) return fgetc(f);
-	last_ch = -1;
+	if (ret == -1)
+	{
+		ret = fgetc(f);
+		if (ret == '\n') line++;
+	}
+	else
+		last_ch = -1;
 	return ret;
 }
 
 void skip_line(void *f)
 {
-	int ch = read_char(f);
-	while (ch != -1 && ch != '\n') ch = fgetc(f);
+	for (;;)
+	{
+		int ch = read_char(f);
+		if (ch == -1 || ch == '\n') break;
+	}
 }
 
 int is_num(int ch) { return '0' <= ch && ch <= '9'; }
@@ -1111,9 +1111,10 @@ int is_hex(int ch) { return is_num(ch) || ('A' <= ch && ch <= 'F') || ('a' <= ch
 
 void read_chars(void *f, char *buf, int len, int(*cond)(int))
 {
-	int p = 0, ch = read_char(f);
-	for (;; ch = fgetc(f))
+	int p = 0;
+	for (;;)
 	{
+		int ch = read_char(f);
 		if (cond(ch))
 		{
 			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
@@ -1129,13 +1130,14 @@ void read_chars(void *f, char *buf, int len, int(*cond)(int))
 
 enum Token read_token(void *f, char *buf, int len)
 {
-	int p = 0, ch = read_char(f);
-	for (;; ch = fgetc(f))
+	int p = 0;
+	for (;;)
 	{
+		int ch = read_char(f);
 		if (ch == -1)
 		{
 			if (p < len) buf[p] = 0;
-			return EOF;
+			return EndF;
 		}
 		else if (ch == '\n')
 			break;
@@ -1151,7 +1153,7 @@ enum Token read_token(void *f, char *buf, int len)
 		else if (ch == '0')
 		{
 			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
-			ch = fgetc(f);
+			ch = read_char(f);
 			if ('0' <= ch && ch <= '9')
 			{
 				last_ch = ch;
@@ -1162,9 +1164,9 @@ enum Token read_token(void *f, char *buf, int len)
 			{
 				if (p < len) buf[p++] = p < len - 1 ? ch : 0;
 				read_chars(f, buf + p, len - p, is_hex);
-				ch = last_ch;
-				for (;; ch = fgetc(f))
+				for (;;)
 				{
+					ch = read_char(f);
 					if (ch == -1 || ch == '\n' || ch > ' ')
 					{
 						last_ch = ch;
@@ -1195,9 +1197,9 @@ enum Token read_token(void *f, char *buf, int len)
 		{
 			last_ch = ch;
 			read_chars(f, buf, len, is_letter);
-			ch = last_ch;
-			for (;; ch = fgetc(f))
+			for (;;)
 			{
+				ch = read_char(f);
 				if (ch == -1 || ch == '\n' || ch > ' ')
 				{
 					last_ch = ch;
@@ -1225,6 +1227,122 @@ enum Token read_token(void *f, char *buf, int len)
 	return EndL;
 }
 
+void to_lower(char *dst, const char *src)
+{
+	for (;; dst++, src++)
+	{
+		char ch = *src;
+		if (is_ualpha(ch)) ch += 32;
+		*dst = ch;
+		if (!ch) break;
+	}
+}
+
+uint64_t hex2num(const char *hex)
+{
+	uint64_t ret = 0;
+	char ch;
+	while (ch = *(hex++))
+	{
+		int n;
+		if ('0' <= ch && ch <= '9')
+			n = ch - '0';
+		else if ('A' <= ch && ch <= 'F')
+			n = ch - 'A' + 10;
+		else if ('a' <= ch && ch <= 'f')
+			n = ch - 'a' + 10;
+		else
+			break;
+		ret <<= 4;
+		ret += n;
+	}
+	return ret;
+}
+
+int assemble_mem(void *f, uint64_t ad, int ln, enum Op op, enum Regs ra, enum Regs rb, int disp)
+{
+	int oph = ((int)op) >> 16, disp2, code, p;
+	if (disp < -0x8000)
+	{
+		printf("%d: error: disp < -0x8000: -%x\n", ln, -disp);
+		disp = -0x8000;
+	}
+	else if (disp > 0x7fff)
+	{
+		printf("%d: error: disp > 0x7fff: %x\n", ln, disp);
+		disp = 0x7fff;
+	}
+	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
+	return (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
+}
+
+void assemble_op(void *f, uint64_t ad, int ln, enum Op op)
+{
+	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
+	if (oph == 0x18) opl = 0;
+	printf("%08x: %s\n", (long)ad, subops[oph][opl]);
+	skip_line(f);
+}
+
+void assemble(void *f)
+{
+	enum Token token;
+	uint64_t ad = 0;
+	char buf[32], bufl[32];
+	text_addr = 0;
+	text_size = 0;
+	line = 1;
+	for (;;)
+	{
+		int ln = line;
+		token = read_token(f, buf, sizeof(buf));
+		switch (token)
+		{
+		case EndF:
+			return;
+		case Addr:
+		case EndL:
+			break;
+		case Symbol:
+			to_lower(bufl, buf);
+			if (token == Symbol && strcmp(bufl, "org") == 0)
+			{
+				token = read_token(f, buf, sizeof(buf));
+				if (token != Hex)
+				{
+					printf("%d: error: org %s\n", ln, buf);
+					skip_line(f);
+				}
+				else
+				{
+					uint64_t h = hex2num(buf + 2);
+					if (ad == 0) text_addr = h;
+					ad = h;
+				}
+			}
+			else
+			{
+				int opn = search_op(bufl);
+				if (opn != -1)
+				{
+					assemble_op(f, ad, ln, opcodes[opn]);
+					ad += 4;
+				}
+				else
+				{
+					printf("%d: error: %s\n", ln, buf);
+					skip_line(f);
+				}
+			}
+			break;
+		default:
+			printf("%d: error: %s\n", ln, buf);
+			skip_line(f);
+			break;
+		}
+	}
+}
+
 int main()
 {
 	int i;
@@ -1243,16 +1361,10 @@ int main()
 		f = fopen(src, "r");
 		if (f)
 		{
-			for (;;)
-			{
-				char buf[32];
-				enum Token token = read_token(f, buf, sizeof(buf));
-				if (token == EOF) break;
-				printf("[%s]%s\n", tokenName[(int)token], buf);
-			}
+			assemble(f);
 			fclose(f);
-			printf("text_addr: 0x%08x\n", text_addr);
-			printf("text_size: 0x%08x\n", text_size);
+			//printf("text_addr: 0x%08x\n", text_addr);
+			//printf("text_size: 0x%08x\n", text_size);
 		}
 	}
 	return 0;
