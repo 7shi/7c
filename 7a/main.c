@@ -1062,7 +1062,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 	return UNDEF;
 }
 
-uint64_t text_addr, text_size;
+uint64_t text_addr, text_size, curad;
 char text_buf[65536];
 int line, curline;
 
@@ -1259,7 +1259,7 @@ uint64_t hex2num(const char *hex)
 	return ret;
 }
 
-int assemble_mem(void *f, uint64_t ad, enum Op op, enum Regs ra, enum Regs rb, int disp)
+int assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
 	int oph = ((int)op) >> 16, disp2;
 	if (disp < -0x8000)
@@ -1276,20 +1276,19 @@ int assemble_mem(void *f, uint64_t ad, enum Op op, enum Regs ra, enum Regs rb, i
 	return (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
 }
 
-void assemble_op(void *f, uint64_t ad, enum Op op)
+void assemble_op(void *f, enum Op op)
 {
 	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
 	if (oph == 0x18) opl = 0;
-	printf("%08x: %s\n", (long)ad, subops[oph][opl]);
+	printf("%08x: %s\n", (long)curad, subops[oph][opl]);
 	skip_line(f);
 }
 
 void assemble(void *f)
 {
 	enum Token token;
-	uint64_t ad = 0;
 	char buf[32], bufl[32];
-	text_addr = 0;
+	text_addr = curad = 0;
 	text_size = 0;
 	line = 1;
 	for (;;)
@@ -1316,8 +1315,8 @@ void assemble(void *f)
 				else
 				{
 					uint64_t h = hex2num(buf + 2);
-					if (ad == 0) text_addr = h;
-					ad = h;
+					if (curad == 0) text_addr = h;
+					curad = h;
 				}
 			}
 			else
@@ -1325,8 +1324,8 @@ void assemble(void *f)
 				int opn = search_op(bufl);
 				if (opn != -1)
 				{
-					assemble_op(f, ad, opcodes[opn]);
-					ad += 4;
+					assemble_op(f, opcodes[opn]);
+					curad += 4;
 				}
 				else
 				{
