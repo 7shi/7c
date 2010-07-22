@@ -1064,7 +1064,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 
 uint64_t text_addr, text_size;
 char text_buf[65536];
-int line;
+int line, curline;
 
 int last_ch = -1;
 
@@ -1259,24 +1259,24 @@ uint64_t hex2num(const char *hex)
 	return ret;
 }
 
-int assemble_mem(void *f, uint64_t ad, int ln, enum Op op, enum Regs ra, enum Regs rb, int disp)
+int assemble_mem(void *f, uint64_t ad, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
-	int oph = ((int)op) >> 16, disp2, code, p;
+	int oph = ((int)op) >> 16, disp2;
 	if (disp < -0x8000)
 	{
-		printf("%d: error: disp < -0x8000: -%x\n", ln, -disp);
+		printf("%d: error: disp < -0x8000: -%x\n", curline, -disp);
 		disp = -0x8000;
 	}
 	else if (disp > 0x7fff)
 	{
-		printf("%d: error: disp > 0x7fff: %x\n", ln, disp);
+		printf("%d: error: disp > 0x7fff: %x\n", curline, disp);
 		disp = 0x7fff;
 	}
 	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
 	return (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
 }
 
-void assemble_op(void *f, uint64_t ad, int ln, enum Op op)
+void assemble_op(void *f, uint64_t ad, enum Op op)
 {
 	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
 	if (oph == 0x18) opl = 0;
@@ -1294,7 +1294,7 @@ void assemble(void *f)
 	line = 1;
 	for (;;)
 	{
-		int ln = line;
+		curline = line;
 		token = read_token(f, buf, sizeof(buf));
 		switch (token)
 		{
@@ -1310,7 +1310,7 @@ void assemble(void *f)
 				token = read_token(f, buf, sizeof(buf));
 				if (token != Hex)
 				{
-					printf("%d: error: org %s\n", ln, buf);
+					printf("%d: error: org %s\n", curline, buf);
 					skip_line(f);
 				}
 				else
@@ -1325,18 +1325,18 @@ void assemble(void *f)
 				int opn = search_op(bufl);
 				if (opn != -1)
 				{
-					assemble_op(f, ad, ln, opcodes[opn]);
+					assemble_op(f, ad, opcodes[opn]);
 					ad += 4;
 				}
 				else
 				{
-					printf("%d: error: %s\n", ln, buf);
+					printf("%d: error: %s\n", curline, buf);
 					skip_line(f);
 				}
 			}
 			break;
 		default:
-			printf("%d: error: %s\n", ln, buf);
+			printf("%d: error: %s\n", curline, buf);
 			skip_line(f);
 			break;
 		}
