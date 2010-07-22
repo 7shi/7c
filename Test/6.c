@@ -16,6 +16,7 @@ int printlong(long v)
 {
     char buf[32];
     char *p;
+    unsigned long uv = (unsigned long)v;
     int ret = 0;
     if (v == 0)
     {
@@ -26,16 +27,16 @@ int printlong(long v)
     {
         printchar('-');
         ret++;
-        v = -v;
+        uv = ((unsigned long)-1L) - uv + 1;
     }
     p = &buf[15];
     *p = '\0';
-    for (; v; v /= 10)
-        *(--p) = '0' + (v % 10);
+    for (; uv; uv /= 10)
+        *(--p) = '0' + (uv % 10);
     return ret + printstr(p);
 }
 
-int printhex(long v, int w)
+int printhex(unsigned long v, int w)
 {
     char buf[32];
     char *p, *start;
@@ -44,12 +45,6 @@ int printhex(long v, int w)
     {
         printchar('0');
         return 1;
-    }
-    else if (v < 0)
-    {
-        printchar('-');
-        ret++;
-        v = -v;
     }
     p = &buf[16];
     *p = '\0';
