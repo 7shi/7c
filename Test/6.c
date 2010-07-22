@@ -27,7 +27,7 @@ int printlong(long v)
     {
         printchar('-');
         ret++;
-        uv = ((unsigned long)-1L) - uv + 1;
+        uv = 0 - uv;
     }
     p = &buf[15];
     *p = '\0';
