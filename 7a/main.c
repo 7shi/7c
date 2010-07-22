@@ -11,6 +11,7 @@ int strcmp(const char *, const char *);
 char *strcpy(char *, const char *);
 char *strcat(char *, const char *);
 int strcmp(const char *, const char *);
+void *memset(void *, int, int);
 
 typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
@@ -1297,9 +1298,9 @@ int parse_reg(const char *reg)
 	return lsearch_string(regname, reglen, reg);
 }
 
-int assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
+void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
-	int oph = ((int)op) >> 16, disp2;
+	int oph = ((int)op) >> 16, disp2, p;
 	if (disp < -0x8000)
 	{
 		printf("%d: error: disp < -0x8000: -%x\n", curline, -disp);
@@ -1311,29 +1312,77 @@ int assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 		disp = 0x7fff;
 	}
 	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
-	return (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
+	p = (int)(curad - text_addr);
+	if (p < sizeof(text_buf) - 3)
+		*(int *)&text_buf[p] = (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
 }
 
 void parse_mem(void *f, enum Op op)
 {
 	char buf[32];
 	enum Token token = read_token(f, buf, sizeof(buf));
-	if (token == Symbol)
+	int ra, rb, disp, sign = 1;
+	if (!(token == Symbol && (ra = parse_reg(buf)) != -1))
 	{
-		int reg = parse_reg(buf);
-		if (reg != -1)
+		printf("%d: error: operand 1 is not register: %s\n", curline, buf);
+		if (token != EndL) skip_line(f);
+		return;
+	}
+	token = read_token(f, buf, sizeof(buf));
+	if (!(token == Sign && strcmp(buf, ",") == 0))
+	{
+		printf("%d: error: comma required before: %s\n", curline, buf);
+		if (token != EndL) skip_line(f);
+		return;
+	}
+	token = read_token(f, buf, sizeof(buf));
+	if (token == Sign && strcmp(buf, "-") == 0)
+	{
+		sign = -1;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	if (token == Int)
+	{
+		disp = ((int)parse_uint(buf)) * sign;
+		sign = 0;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	else if (token == Hex)
+	{
+		disp = ((int)parse_hex(buf + 2)) * sign;
+		sign = 0;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	if (!(token == Sign && strcmp(buf, "(") == 0))
+	{
+		if (sign != 0)
 		{
-			token = read_token(f, buf, sizeof(buf));
-			if (token == Sign && strcmp(buf, ",") == 0)
-			{
-				/// must be implement
-				return;
-			}
-			printf("%d: error: comma required before: %s\n", curline, buf);
+			printf("%d: error: disp or addr is required: %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
+			return;
+		}
+		else if (!(token == EndF || token == EndL))
+			printf("%d: error: disp or addr is required\n", curline);
+		rb = (int)Zero;
+	}
+	else
+	{
+		token = read_token(f, buf, sizeof(buf));
+		if (!(token == Symbol && (rb = parse_reg(buf)) != -1))
+		{
+			printf("%d: error: address is not register: %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
+			return;
+		}
+		token = read_token(f, buf, sizeof(buf));
+		if (!(token == Sign && strcmp(buf, ")") == 0))
+		{
+			printf("%d: error: must be ')': %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
 			return;
 		}
 	}
-	printf("%d: error: operand 1 is not register: %s\n", curline, buf);
+	assemble_mem(f, op, (enum Regs)ra, (enum Regs)rb, disp);
 }
 
 void assemble_op(void *f, enum Op op)
@@ -1346,8 +1395,10 @@ void assemble_op(void *f, enum Op op)
 	case Mem:
 		parse_mem(f, op);
 		break;
+	default:
+		skip_line(f);
+		break;
 	}
-	skip_line(f);
 }
 
 void assemble(void *f)
@@ -1357,14 +1408,14 @@ void assemble(void *f)
 	text_addr = curad = 0;
 	text_size = 0;
 	line = 1;
+	memset(text_buf, 0, sizeof(text_buf));
 	for (;;)
 	{
 		curline = line;
 		token = read_token(f, buf, sizeof(buf));
+		if (token == EndF) break;
 		switch (token)
 		{
-		case EndF:
-			return;
 		case Addr:
 		case EndL:
 			break;
@@ -1376,7 +1427,7 @@ void assemble(void *f)
 				if (token != Hex)
 				{
 					printf("%d: error: org %s\n", curline, buf);
-					skip_line(f);
+					if (token != EndL) skip_line(f);
 				}
 				else
 				{
@@ -1406,6 +1457,8 @@ void assemble(void *f)
 			break;
 		}
 	}
+	text_size = curad - text_addr;
+	if (text_size > sizeof(text_buf)) text_size = sizeof(text_buf);
 }
 
 int main()
@@ -1428,8 +1481,14 @@ int main()
 		{
 			assemble(f);
 			fclose(f);
-			//printf("text_addr: 0x%08x\n", text_addr);
-			//printf("text_size: 0x%08x\n", text_size);
+			printf("text_addr: 0x%08x\n", text_addr);
+			printf("text_size: 0x%08x\n", text_size);
+			f = fopen(dst, "wb");
+			if (f)
+			{
+				fwrite(text_buf, (int)text_size, 1, f);
+				fclose(f);
+			}
 		}
 	}
 	return 0;
