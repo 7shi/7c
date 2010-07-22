@@ -21,6 +21,18 @@ enum Format
 	___, Pcd, Bra, Mem, Mfc, Mbr, Opr, F_P
 };
 
+enum Format formats[] =
+{
+	/* 00-07 */ Pcd, ___, ___, ___, ___, ___, ___, ___,
+	/* 08-0f */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
+	/* 10-17 */ Opr, Opr, Opr, Opr, F_P, F_P, F_P, F_P,
+	/* 18-1f */ Mfc, ___, Mbr, ___, Opr, ___, ___, ___,
+	/* 20-27 */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
+	/* 28-2f */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
+	/* 30-37 */ Bra, Bra, Bra, Bra, Bra, Bra, Bra, Bra,
+	/* 38-3f */ Bra, Bra, Bra, Bra, Bra, Bra, Bra, Bra,
+};
+
 enum Regs
 {
 	/* r00	 */ V0,
@@ -53,17 +65,7 @@ const char *regname[] =
 	/* r31	 */ "zero",
 };
 
-enum Format formats[] =
-{
-	/* 00-07 */ Pcd, ___, ___, ___, ___, ___, ___, ___,
-	/* 08-0f */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
-	/* 10-17 */ Opr, Opr, Opr, Opr, F_P, F_P, F_P, F_P,
-	/* 18-1f */ Mfc, ___, Mbr, ___, Opr, ___, ___, ___,
-	/* 20-27 */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
-	/* 28-2f */ Mem, Mem, Mem, Mem, Mem, Mem, Mem, Mem,
-	/* 30-37 */ Bra, Bra, Bra, Bra, Bra, Bra, Bra, Bra,
-	/* 38-3f */ Bra, Bra, Bra, Bra, Bra, Bra, Bra, Bra,
-};
+const int reglen = sizeof(regname) / sizeof(const char *);
 
 enum Op
 {
@@ -759,7 +761,7 @@ const char **subops[] =
 	op38, op39, op3a, op3b, op3c, op3d, op3e, op3f,
 };
 
-int search_string(const char **list, const char *target, int start, int end)
+int bsearch_string(const char **list, const char *target, int start, int end)
 {
 	if (end - start < 4)
 	{
@@ -774,16 +776,24 @@ int search_string(const char **list, const char *target, int start, int end)
 		if (cmp == 0)
 			return center;
 		else if (cmp < 0)
-			return search_string(list, target, start, center - 1);
+			return bsearch_string(list, target, start, center - 1);
 		else
-			return search_string(list, target, center + 1, end);
+			return bsearch_string(list, target, center + 1, end);
 	}
+	return -1;
+}
+
+int lsearch_string(const char **list, int len, const char *target)
+{
+	int i;
+	for (i = 0; i < len; i++)
+		if (strcmp(list[i], target) == 0) return i;
 	return -1;
 }
 
 int search_op(const char *mne)
 {
-	return search_string(opnames, mne, 0, oplen - 1);
+	return bsearch_string(opnames, mne, 0, oplen - 1);
 }
 
 void init_table()
@@ -1227,18 +1237,36 @@ enum Token read_token(void *f, char *buf, int len)
 	return EndL;
 }
 
-void to_lower(char *dst, const char *src)
+void to_lower(char *dst, int len, const char *src)
 {
-	for (;; dst++, src++)
+	int p;
+	for (p = 0;; p++)
 	{
-		char ch = *src;
+		char ch = p < len - 1 ? src[p] : 0;
 		if (is_ualpha(ch)) ch += 32;
-		*dst = ch;
+		dst[p] = ch;
 		if (!ch) break;
 	}
 }
 
-uint64_t hex2num(const char *hex)
+uint64_t parse_uint(const char *n)
+{
+	uint64_t ret = 0;
+	char ch;
+	while (ch = *(n++))
+	{
+		int n;
+		if ('0' <= ch && ch <= '9')
+			n = ch - '0';
+		else
+			break;
+		ret *= 10;
+		ret += n;
+	}
+	return ret;
+}
+
+uint64_t parse_hex(const char *hex)
 {
 	uint64_t ret = 0;
 	char ch;
@@ -1259,6 +1287,16 @@ uint64_t hex2num(const char *hex)
 	return ret;
 }
 
+int parse_reg(const char *reg)
+{
+	char buf[8];
+	if ((reg[0] == 'r' || reg[0] == 'R') && is_num(reg[1])
+		&& (reg[2] == 0 || (is_num(reg[2]) && reg[3] == 0)))
+		return (int)parse_uint(reg + 1);
+	to_lower(buf, sizeof(buf), reg);
+	return lsearch_string(regname, reglen, reg);
+}
+
 int assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
 	int oph = ((int)op) >> 16, disp2;
@@ -1276,11 +1314,39 @@ int assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 	return (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
 }
 
+void parse_mem(void *f, enum Op op)
+{
+	char buf[32];
+	enum Token token = read_token(f, buf, sizeof(buf));
+	if (token == Symbol)
+	{
+		int reg = parse_reg(buf);
+		if (reg != -1)
+		{
+			token = read_token(f, buf, sizeof(buf));
+			if (token == Sign && strcmp(buf, ",") == 0)
+			{
+				/// must be implement
+				return;
+			}
+			printf("%d: error: comma required before: %s\n", curline, buf);
+			return;
+		}
+	}
+	printf("%d: error: operand 1 is not register: %s\n", curline, buf);
+}
+
 void assemble_op(void *f, enum Op op)
 {
 	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
 	if (oph == 0x18) opl = 0;
 	printf("%08x: %s\n", (long)curad, subops[oph][opl]);
+	switch (formats[oph])
+	{
+	case Mem:
+		parse_mem(f, op);
+		break;
+	}
 	skip_line(f);
 }
 
@@ -1303,7 +1369,7 @@ void assemble(void *f)
 		case EndL:
 			break;
 		case Symbol:
-			to_lower(bufl, buf);
+			to_lower(bufl, sizeof(bufl), buf);
 			if (token == Symbol && strcmp(bufl, "org") == 0)
 			{
 				token = read_token(f, buf, sizeof(buf));
@@ -1314,7 +1380,7 @@ void assemble(void *f)
 				}
 				else
 				{
-					uint64_t h = hex2num(buf + 2);
+					uint64_t h = parse_hex(buf + 2);
 					if (curad == 0) text_addr = h;
 					curad = h;
 				}
