@@ -1298,6 +1298,63 @@ int parse_reg(const char *reg)
 	return lsearch_string(regname, reglen, reg);
 }
 
+int parse_addr(void *f, int *r, int *disp)
+{
+	char buf[32];
+	int sign = 1;
+	enum Token token = read_token(f, buf, sizeof(buf));
+	if (token == Sign && strcmp(buf, "-") == 0)
+	{
+		sign = -1;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	if (token == Int)
+	{
+		*disp = ((int)parse_uint(buf)) * sign;
+		sign = 0;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	else if (token == Hex)
+	{
+		*disp = ((int)parse_hex(buf + 2)) * sign;
+		sign = 0;
+		token = read_token(f, buf, sizeof(buf));
+	}
+	if (!(token == Sign && strcmp(buf, "(") == 0))
+	{
+		if (sign != 0)
+		{
+			printf("%d: error: disp or addr is required: %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
+			return 0;
+		}
+		else if (!(token == EndF || token == EndL))
+		{
+			printf("%d: error: disp or addr is required\n", curline);
+			return 0;
+		}
+		*r = (int)Zero;
+	}
+	else
+	{
+		token = read_token(f, buf, sizeof(buf));
+		if (!(token == Symbol && (*r = parse_reg(buf)) != -1))
+		{
+			printf("%d: error: address is not register: %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
+			return 0;
+		}
+		token = read_token(f, buf, sizeof(buf));
+		if (!(token == Sign && strcmp(buf, ")") == 0))
+		{
+			printf("%d: error: must be ')': %s\n", curline, buf);
+			if (token != EndL) skip_line(f);
+			return 0;
+		}
+	}
+	return 1;
+}
+
 void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
 	int oph = ((int)op) >> 16, disp2, p;
@@ -1321,7 +1378,7 @@ void parse_mem(void *f, enum Op op)
 {
 	char buf[32];
 	enum Token token = read_token(f, buf, sizeof(buf));
-	int ra, rb, disp, sign = 1;
+	int ra, rb, disp;
 	if (!(token == Symbol && (ra = parse_reg(buf)) != -1))
 	{
 		printf("%d: error: operand 1 is not register: %s\n", curline, buf);
@@ -1335,54 +1392,8 @@ void parse_mem(void *f, enum Op op)
 		if (token != EndL) skip_line(f);
 		return;
 	}
-	token = read_token(f, buf, sizeof(buf));
-	if (token == Sign && strcmp(buf, "-") == 0)
-	{
-		sign = -1;
-		token = read_token(f, buf, sizeof(buf));
-	}
-	if (token == Int)
-	{
-		disp = ((int)parse_uint(buf)) * sign;
-		sign = 0;
-		token = read_token(f, buf, sizeof(buf));
-	}
-	else if (token == Hex)
-	{
-		disp = ((int)parse_hex(buf + 2)) * sign;
-		sign = 0;
-		token = read_token(f, buf, sizeof(buf));
-	}
-	if (!(token == Sign && strcmp(buf, "(") == 0))
-	{
-		if (sign != 0)
-		{
-			printf("%d: error: disp or addr is required: %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
-			return;
-		}
-		else if (!(token == EndF || token == EndL))
-			printf("%d: error: disp or addr is required\n", curline);
-		rb = (int)Zero;
-	}
-	else
-	{
-		token = read_token(f, buf, sizeof(buf));
-		if (!(token == Symbol && (rb = parse_reg(buf)) != -1))
-		{
-			printf("%d: error: address is not register: %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
-			return;
-		}
-		token = read_token(f, buf, sizeof(buf));
-		if (!(token == Sign && strcmp(buf, ")") == 0))
-		{
-			printf("%d: error: must be ')': %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
-			return;
-		}
-	}
-	assemble_mem(f, op, (enum Regs)ra, (enum Regs)rb, disp);
+	if (parse_addr(f, &rb, &disp))
+		assemble_mem(f, op, (enum Regs)ra, (enum Regs)rb, disp);
 }
 
 void assemble_op(void *f, enum Op op)
