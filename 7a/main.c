@@ -1355,9 +1355,16 @@ int parse_addr(void *f, int *r, int *disp)
 	return 1;
 }
 
+void write_code(int code)
+{
+	int p = (int)(curad - text_addr);
+	if (p < sizeof(text_buf) - 3) *(int *)&text_buf[p] = code;
+	curad += 4;
+}
+
 void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
-	int oph = ((int)op) >> 16, disp2, p;
+	int oph = ((int)op) >> 16, disp2;
 	if (disp < -0x8000)
 	{
 		printf("%d: error: disp < -0x8000: -%x\n", curline, -disp);
@@ -1369,9 +1376,7 @@ void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 		disp = 0x7fff;
 	}
 	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
-	p = (int)(curad - text_addr);
-	if (p < sizeof(text_buf) - 3)
-		*(int *)&text_buf[p] = (oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2;
+	write_code((oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2);
 }
 
 void parse_mem(void *f, enum Op op)
@@ -1428,33 +1433,21 @@ void assemble(void *f)
 		switch (token)
 		{
 		case Addr:
+			{
+				uint64_t h = parse_hex(buf + 2);
+				if (curad == 0) text_addr = h;
+				curad = h;
+				break;
+			}
 		case EndL:
 			break;
 		case Symbol:
-			to_lower(bufl, sizeof(bufl), buf);
-			if (token == Symbol && strcmp(bufl, "org") == 0)
 			{
-				token = read_token(f, buf, sizeof(buf));
-				if (token != Hex)
-				{
-					printf("%d: error: org %s\n", curline, buf);
-					if (token != EndL) skip_line(f);
-				}
-				else
-				{
-					uint64_t h = parse_hex(buf + 2);
-					if (curad == 0) text_addr = h;
-					curad = h;
-				}
-			}
-			else
-			{
-				int opn = search_op(bufl);
+				int opn;
+				to_lower(bufl, sizeof(bufl), buf);
+				opn = search_op(bufl);
 				if (opn != -1)
-				{
 					assemble_op(f, opcodes[opn]);
-					curad += 4;
-				}
 				else
 				{
 					printf("%d: error: %s\n", curline, buf);
