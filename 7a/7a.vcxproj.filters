@@ -3,4 +3,8 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="alpha.h" />
+    <ClInclude Include="libc.h" />
+  </ItemGroup>
 </Project>

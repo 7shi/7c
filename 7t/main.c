@@ -1,21 +1,9 @@
-int printf(const char *, ...);
-void *fopen(const char *, const char *);
-int fclose(void *);
-int fread(void *, int, int, void *);
-int fwrite(const void *, int, int, void *);
-int fseek(void *, int, int);
-int strcmp(const char *, const char *);
-char *strcpy(char *, const char *);
-char *strcat(char *, const char *);
-
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
+#include "../7a/libc.h"
 
 uint64_t text_addr, text_size;
 char text_buf[65536];
 
-int read_text_file(void *f)
+int read_text_file(FILE *f)
 {
 	int i;
 	char buf[64], shstrtab[256];
@@ -102,7 +90,7 @@ int read_text_file(void *f)
 int read_text(const char *fn)
 {
 	int ret = 0;
-	void *f = fopen(fn, "rb");
+	FILE *f = fopen(fn, "rb");
 	if (f)
 	{
 		ret = read_text_file(f);
@@ -125,7 +113,7 @@ int main()
 		printf("%s -> %s\n", src, dst);
 		if (read_text(src))
 		{
-			void *f;
+			FILE *f;
 			printf("text_addr: 0x%016x\n", text_addr);
 			printf("text_size: 0x%016x\n", text_size);
 			f = fopen(dst, "wb");
