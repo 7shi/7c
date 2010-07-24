@@ -59,24 +59,6 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return op;
-		case Mfc:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				fprintf(f, "%s %s,%s", mne, regname[ra], regname[rb]);
-				return op;
-			}
-		case Mbr:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				int disp = (int)(code & 0x3fff);
-				if (op == Ret && ra == Zero && rb == RA && disp == 1)
-					fprintf(f, "%s", mne);
-				else
-					fprintf(f, "%s %s,%s,0x%04x", mne, regname[ra], regname[rb], disp);
-				return op;
-			}
 		case F_P:
 			{
 				int fa = (int)((code >> 21) & 31);
@@ -408,15 +390,19 @@ int read_reg(enum Regs *reg, const char *msg)
 	return get_reg(reg, read_token(), msg);
 }
 
-int read_sign(const char *sign)
+int is_sign(enum Token token, const char *sign)
 {
-	enum Token token = read_token();
 	if (token == Sign && strcmp(token_buf, sign) == 0) return 1;
 	printf("%d: error: '%s' required", curline, sign);
 	if (token_buf[0] != 0) printf(": %s", token_buf);
 	printf("\n");
 	if (token != EndL) skip_line();
 	return 1;
+}
+
+int read_sign(const char *sign)
+{
+	return is_sign(read_token(), sign);
 }
 
 int parse_addr(enum Regs *reg, int *disp)
@@ -458,6 +444,27 @@ int parse_addr(enum Regs *reg, int *disp)
 	else if (!read_reg(reg, 0) || !read_sign(")"))
 		return 0;
 	return 1;
+}
+
+int parse_value(uint64_t *v)
+{
+	enum Token token = read_token();
+	switch (token)
+	{
+	case Int:
+		*v = parse_uint(token_buf);
+		return 1;
+	case Hex:
+		*v = parse_hex(token_buf + 2);
+		return 1;
+	case EndL:
+	case EndF:
+		printf("%d: error: value required\n", curline);
+		return 0;
+	}
+	printf("%d: error: value required: %s\n", curline, token_buf);
+	if (token != EndL) skip_line();
+	return 0;
 }
 
 int parse_reg_or_value(enum Regs *reg, uint64_t *v)
@@ -532,11 +539,11 @@ void assemble_mfc(enum Op op, enum Regs ra, enum Regs rb)
 
 void assemble_mbr(enum Op op, enum Regs ra, enum Regs rb, int hint)
 {
-	int op1 = ((int)op) >> 16 << 26, op2 = ((int)op) & 0x3fff;
-	if (hint < 0 || hint > 3)
-		printf("%d: error: hint is over 2bit: %d\n", curline, hint);
+	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 3) << 14;
+	if (hint < 0 || hint > 0x3fff)
+		printf("%d: error: hint is over 14bit: %x\n", curline, hint);
 	else
-		write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | (hint << 14) | op2);
+		write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | op2 | hint);
 }
 
 void assemble_opr(enum Op op, enum Regs ra, enum Regs rb, enum Regs rc)
@@ -549,7 +556,7 @@ void assemble_opr_value(enum Op op, enum Regs ra, int vb, enum Regs rc)
 {
 	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 0x7f) << 5;
 	if (vb < 0 || vb > 255)
-		printf("%d: error: literal is over 8bit: %d\n", curline, vb);
+		printf("%d: error: literal is over 8bit: %x\n", curline, vb);
 	else
 		write_code(op1 | (((int)ra) << 21) | (vb << 13) | 0x1000 | op2 | (int)rc);
 }
@@ -646,6 +653,26 @@ void parse_mem(enum Op op)
 	}
 }
 
+void parse_mfc(enum Op op)
+{
+	enum Regs ra, rb;
+	if (read_reg(&ra, 0) && read_sign(",") && read_reg(&rb, 0))
+		assemble_mfc(op, ra, rb);
+}
+
+void parse_mbr(enum Op op)
+{
+	enum Regs ra, rb;
+	uint64_t hint;
+	enum Token token = read_token();
+	if (op == Ret && (token == EndL || token == EndF))
+		assemble_mbr(op, Zero, RA, 1);
+	else if (get_reg(&ra, token, 0)
+		&& read_sign(",") && read_sign("(") && read_reg(&rb, 0) && read_sign(")")
+		&& read_sign(",") && parse_value(&hint))
+		assemble_mbr(op, ra, rb, (int)hint);
+}
+
 void parse_opr_2(enum Op op, enum Regs ra)
 {
 	enum Regs rb, rc;
@@ -701,15 +728,11 @@ void assemble_op(enum Op op)
 	if (oph == 0x18) opl = 0;
 	switch (formats[oph])
 	{
-	case Bra:
-		parse_bra(op);
-		break;
-	case Mem:
-		parse_mem(op);
-		break;
-	case Opr:
-		parse_opr(op);
-		break;
+	case Bra: parse_bra(op); break;
+	case Mem: parse_mem(op); break;
+	case Mfc: parse_mfc(op); break;
+	case Mbr: parse_mbr(op); break;
+	case Opr: parse_opr(op); break;
 	default:
 		printf("%p: %s: not implemented\n", (void *)curad, subops[oph][opl]);
 		skip_line();
