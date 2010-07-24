@@ -750,17 +750,29 @@ const char **subops[] =
 
 enum POp
 {
-	Mov, Nop, Clr, Sextl, Not, Negl, Negl__v, Negq, Negq__v
+	Mov, Nop, Clr,
+	Sextl, Not, Negl, Negl__v, Negq, Negq__v,
+	Fnop, Fclr, Fabs, Fmov, Fneg,
+	Negf, Negf__s, Negg, Negg__s,
+	Negs, Negs__su, Negs__sui, Negt, Negt__su, Negt__sui
 };
 
 const char *popnames[] =
 {
-	"mov", "nop", "clr", "sextl", "not", "negl", "negl/v", "negq", "negq/v"
+	"mov", "nop", "clr",
+	"sextl", "not", "negl", "negl/v", "negq", "negq/v",
+	"fnop", "fclr", "fabs", "fmov", "fneg",
+	"negf", "negf/s", "negg", "negg/s",
+	"negs", "negs/su", "negs/sui", "negt", "negt/su", "negt/sui"
 };
 
 enum Op popcodes[] =
 {
-	UNDEF, Bis, Bis, Addl, Ornot, Subl, Subl__v, Subq, Subq__v
+	UNDEF, Bis, Bis,
+	Addl, Ornot, Subl, Subl__v, Subq, Subq__v,
+	Cpys, Cpys, Cpys, Cpys, Cpysn,
+	Subf, Subf__s, Subg, Subg__s,
+	Subs, Subs__su, Subs__sui, Subt, Subt__su, Subt__sui
 };
 
 const int poplen = sizeof(popnames) / sizeof(const char *);

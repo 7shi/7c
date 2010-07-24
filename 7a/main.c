@@ -59,72 +59,6 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return op;
-		case F_P:
-			{
-				int fa = (int)((code >> 21) & 31);
-				int fb = (int)((code >> 16) & 31);
-				int fc = (int)(code & 31);
-				int pst = 2;
-				const char *pse = 0;
-				if (fa == 31)
-					switch (op)
-					{
-						case Cpys:
-							if (fb == 31 && fc == 31)
-							{
-								pst = 0;
-								pse = "fnop";
-							}
-							else if (fb == 31)
-							{
-								pst = 1;
-								pse = "fclr";
-							}
-							else
-								pse = "fabs";
-							break;
-						case Subf: pse = "negf"; break;
-						case Subf__s: pse = "negf/s"; break;
-						case Subg: pse = "negg"; break;
-						case Subg__s: pse = "negg/s"; break;
-						case Subs: pse = "negs"; break;
-						case Subs__su: pse = "negs/su"; break;
-						case Subs__sui: pse = "negs/sui"; break;
-						case Subt: pse = "negt"; break;
-						case Subt__su: pse = "negt/su"; break;
-						case Subt__sui: pse = "negt/sui"; break;
-					};
-				if (pse == 0 && fa == fb)
-					switch (op)
-					{
-						case Cpys: pse = "fmov"; break;
-						case Cpysn: pse = "fneg"; break;
-					}
-				if (pse == 0 && fa == fb && fb == fc)
-					switch (op)
-					{
-						case Mf_fpcr:
-						case Mt_fpcr:
-							pst = 1;
-							pse = mne;
-							break;
-					}
-				if (pse)
-					switch (pst)
-					{
-						case 0:
-							fprintf(f, "%s", pse);
-							return op;
-						case 1:
-							fprintf(f, "%s f%d", pse, fc);
-							return op;
-						case 2:
-							fprintf(f, "%s f%d,f%d", pse, fb, fc);
-							return op;
-					}
-				fprintf(f, "%s f%d,f%d,f%d", mne, fa, fb, fc);
-				return op;
-			}
 	}
 	return UNDEF;
 }
@@ -644,7 +578,7 @@ void parse_mem(enum Op op)
 	case Prefetch_m:
 	case Prefetch_men:
 		if (parse_addr(&rb, &disp))
-			assemble_mem(op, Zero, (enum Regs)rb, disp);
+			assemble_mem(op, Zero, rb, disp);
 		break;
 	default:
 		if (read_reg(&ra, 0) && read_sign(",") && parse_addr(&rb, &disp))
@@ -694,6 +628,18 @@ void parse_opr(enum Op op)
 		parse_opr_2(op, ra);
 }
 
+void parse_fp(enum Op op)
+{
+	enum Regs fa, fb, fc;
+	enum Token token;
+	if (!read_reg(&fa, 0)) return;
+	token = read_token();
+	if ((token == EndL || token == EndF) && (op == Mf_fpcr || op == Mt_fpcr))
+		assemble_fp(op, fa, fa, fa);
+	else if (is_sign(token, ",") && read_reg(&fb, 0) && read_sign(",") && read_reg(&fc, 0))
+		assemble_fp(op, fa, fb, fc);
+}
+
 void assemble_pop(enum POp pop)
 {
 	switch (pop)
@@ -708,7 +654,7 @@ void assemble_pop(enum POp pop)
 		{
 			enum Regs rc;
 			if (read_reg(&rc, 0))
-				assemble_opr(Bis, Zero, Zero, (enum Regs)rc);
+				assemble_opr(Bis, Zero, Zero, rc);
 			break;
 		}
 	case Sextl:
@@ -719,6 +665,41 @@ void assemble_pop(enum POp pop)
 	case Negq__v:
 		parse_opr_2(popcodes[(int)pop], Zero);
 		break;
+	case Fnop:
+		assemble_fp(Cpys, Zero, Zero, Zero);
+		break;
+	case Fclr:
+		{
+			enum Regs fc;
+			if (read_reg(&fc, 0))
+				assemble_fp(Cpys, Zero, Zero, fc);
+			break;
+		}
+	case Fabs:
+	case Negf:
+	case Negf__s:
+	case Negg:
+	case Negg__s:
+	case Negs:
+	case Negs__su:
+	case Negs__sui:
+	case Negt:
+	case Negt__su:
+	case Negt__sui:
+		{
+			enum Regs fb, fc;
+			if (read_reg(&fb, 0) && read_sign(",") && read_reg(&fc, 0))
+				assemble_fp(popcodes[(int)pop], Zero, fb, fc);
+			break;
+		}
+	case Fmov:
+	case Fneg:
+		{
+			enum Regs fb, fc;
+			if (read_reg(&fb, 0) && read_sign(",") && read_reg(&fc, 0))
+				assemble_fp(popcodes[(int)pop], fb, fb, fc);
+			break;
+		}
 	}
 }
 
@@ -733,6 +714,7 @@ void assemble_op(enum Op op)
 	case Mfc: parse_mfc(op); break;
 	case Mbr: parse_mbr(op); break;
 	case Opr: parse_opr(op); break;
+	case F_P: parse_fp (op); break;
 	default:
 		printf("%p: %s: not implemented\n", (void *)curad, subops[oph][opl]);
 		skip_line();
