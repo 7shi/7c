@@ -66,6 +66,7 @@ enum Op
 	Ldah = 0x090000,
 	Ldbu = 0x0a0000,
 	Ldq_u = 0x0b0000,
+	Unop = 0x0b0001,
 	Ldwu = 0x0c0000,
 	Stw = 0x0d0000,
 	Stb = 0x0e0000,
@@ -642,7 +643,8 @@ const char *opnames[] =
 	"subs/suim", "subs/sum", "subs/u", "subs/uc", "subs/ud", "subs/um", "subt", "subt/c",
 	"subt/d", "subt/m", "subt/su", "subt/suc", "subt/sud", "subt/sui", "subt/suic", "subt/suid",
 	"subt/suim", "subt/sum", "subt/u", "subt/uc", "subt/ud", "subt/um", "trapb", "umulh",
-	"unpkbl", "unpkbw", "wh64", "wh64en", "wmb", "xor", "zap", "zapnot",
+	"unop", "unpkbl", "unpkbw", "wh64", "wh64en", "wmb", "xor", "zap",
+	"zapnot",
 };
 
 enum Op opcodes[] =
@@ -711,14 +713,15 @@ enum Op opcodes[] =
 	Subs__suim, Subs__sum, Subs__u, Subs__uc, Subs__ud, Subs__um, Subt, Subt__c,
 	Subt__d, Subt__m, Subt__su, Subt__suc, Subt__sud, Subt__sui, Subt__suic, Subt__suid,
 	Subt__suim, Subt__sum, Subt__u, Subt__uc, Subt__ud, Subt__um, Trapb, Umulh,
-	Unpkbl, Unpkbw, Wh64, Wh64en, Wmb, Xor, Zap, Zapnot,
+	Unop, Unpkbl, Unpkbw, Wh64, Wh64en, Wmb, Xor, Zap,
+	Zapnot,
 };
 
 const int oplen = sizeof(opnames) / sizeof(const char *);
 
 const char *op00[1], *op01[1], *op02[1], *op03[1];
 const char *op04[1], *op05[1], *op06[1], *op07[1];
-const char *op08[1], *op09[1], *op0a[1], *op0b[1];
+const char *op08[1], *op09[1], *op0a[1], *op0b[2];
 const char *op0c[1], *op0d[1], *op0e[1], *op0f[1];
 const char *op10[0x80], *op11[0x80], *op12[0x80], *op13[0x80];
 const char *op14[0x800], *op15[0x800], *op16[0x800], *op17[0x800];

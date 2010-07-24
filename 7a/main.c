@@ -92,7 +92,7 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 	{
 		default:
 			if (op == UNDEF)
-				fprintf(f, "pal%02x %08x", opc, code & 0x03ffffff);
+				fprintf(f, "opc%02x %08x", opc, code & 0x03ffffff);
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return op;
@@ -109,39 +109,6 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 					fprintf(f, "br 0x%s", sdisp);
 				else
 					fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
-				return op;
-			}
-		case Mem:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				int disp = (int)(code & 0xffff);
-				const char *args = "";
-				if (ra == 31)
-				{
-					if (disp == 0 && op == Ldq_u)
-					{
-						fprintf(f, "unop");
-						return op;
-					}
-					else
-					{
-						const char *pse = 0;
-						switch (op)
-						{
-							case Ldl: pse = "prefetch"; break;
-							case Ldq: pse = "prefetch_en"; break;
-							case Lds: pse = "prefetch_m"; break;
-							case Ldt: pse = "prefetch_men"; break;
-						}
-						if (pse)
-						{
-							fprintf(f, "%s %s", pse, args);
-							return op;
-						}
-					}
-				}
-				fprintf(f, "%s %s,%s", mne, regname[ra], args);
 				return op;
 			}
 		case Mfc:
@@ -635,9 +602,24 @@ void parse_mov()
 
 void parse_mem(enum Op op)
 {
-	int ra = read_reg(0), rb, disp;
-	if (ra != -1 && read_sign(",") && parse_addr(&rb, &disp))
-		assemble_mem(op, (enum Regs)ra, (enum Regs)rb, disp);
+	int ra, rb, disp;
+	switch (op)
+	{
+	case Unop:
+		assemble_mem(op, Zero, Zero, 0);
+		break;
+	case Prefetch:
+	case Prefetch_en:
+	case Prefetch_m:
+	case Prefetch_men:
+		if (parse_addr(&rb, &disp))
+			assemble_mem(op, Zero, (enum Regs)rb, disp);
+		break;
+	default:
+		if ((ra = read_reg(0)) != -1 && read_sign(",") && parse_addr(&rb, &disp))
+			assemble_mem(op, (enum Regs)ra, (enum Regs)rb, disp);
+		break;
+	}
 }
 
 void assemble_op(enum Op op)

@@ -62,7 +62,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 	{
 		default:
 			if (op == UNDEF)
-				fprintf(f, "pal%02x %08x", opc, code & 0x03ffffff);
+				fprintf(f, "opc%02x %08x", opc, code & 0x03ffffff);
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return op;
