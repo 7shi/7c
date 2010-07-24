@@ -844,16 +844,11 @@ enum Op get_op(uint32_t code)
 	return subops[op][subop] ? (enum Op)((op << 16) | subop) : UNDEF;
 }
 
-const char *get_mnemonic(enum Op op)
-{
-	return op == UNDEF ? "UNDEF" : subops[((int)op) >>16][((int)op) & 0xffff];
-}
-
 enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 {
 	enum Op op = get_op(code);
 	int opc = (int)(code >> 26);
-	const char *mne = get_mnemonic(op);
+	const char *mne = "";
 	switch (formats[opc])
 	{
 		default:
@@ -882,35 +877,8 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 				int ra = (int)((code >> 21) & 31);
 				int rb = (int)((code >> 16) & 31);
 				int disp = (int)(code & 0xffff);
-				char args[32];
-				if (disp < 10)
-					sprintf(args, "%d(%s)", disp, regname[rb]);
-				else if (disp < 0x8000)
-					sprintf(args, "0x%x(%s)", disp, regname[rb]);
-				else
-				{
-					int disp2 = 0x10000 - disp;
-					if (disp2 < 10)
-						sprintf(args, "-%d(%s)", disp2, regname[rb]);
-					else
-						sprintf(args, "-0x%x(%s)", disp2, regname[rb]);
-				}
-				if (op == Ldt || op == Stt)
-				{
-					fprintf(f, "%s f%d,%s", mne, ra, args);
-					return op;
-				}
-				else if (rb == 31 && op == Lda)
-				{
-					fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
-					return op;
-				}
-				else if (rb == 31 && op == Ldah)
-				{
-					fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
-					return op;
-				}
-				else if (ra == 31)
+				const char *args = "";
+				if (ra == 31)
 				{
 					if (disp == 0 && op == Ldq_u)
 					{
@@ -1076,6 +1044,7 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 uint64_t text_addr, text_size, curad;
 char text_buf[65536];
 int line, curline;
+void *file;
 
 int last_ch = -1;
 
@@ -1089,12 +1058,12 @@ const char *tokenName[] =
 	"endf", "endl", "int", "hex", "oct", "symbol", "label", "sign", "addr"
 };
 
-int read_char(void *f)
+int read_char()
 {
 	int ret = last_ch;
 	if (ret == -1)
 	{
-		ret = fgetc(f);
+		ret = fgetc(file);
 		if (ret == '\n') line++;
 	}
 	else
@@ -1102,11 +1071,11 @@ int read_char(void *f)
 	return ret;
 }
 
-void skip_line(void *f)
+void skip_line()
 {
 	for (;;)
 	{
-		int ch = read_char(f);
+		int ch = read_char();
 		if (ch == -1 || ch == '\n') break;
 	}
 }
@@ -1120,12 +1089,12 @@ int is_letter(int ch) { return ch == '_' || is_alphanum(ch); }
 int is_oct(int ch) { return '0' <= ch && ch <= '7'; }
 int is_hex(int ch) { return is_num(ch) || ('A' <= ch && ch <= 'F') || ('a' <= ch && ch <= 'f'); }
 
-void read_chars(void *f, char *buf, int len, int(*cond)(int))
+void read_chars(char *buf, int len, int(*cond)(int))
 {
 	int p = 0;
 	for (;;)
 	{
-		int ch = read_char(f);
+		int ch = read_char();
 		if (cond(ch))
 		{
 			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
@@ -1139,22 +1108,24 @@ void read_chars(void *f, char *buf, int len, int(*cond)(int))
 	}
 }
 
-enum Token read_token(void *f, char *buf, int len)
+char token_buf[32];
+
+enum Token read_token()
 {
 	int p = 0;
 	for (;;)
 	{
-		int ch = read_char(f);
+		int ch = read_char();
 		if (ch == -1)
 		{
-			if (p < len) buf[p] = 0;
+			if (p < sizeof(token_buf)) token_buf[p] = 0;
 			return EndF;
 		}
 		else if (ch == '\n')
 			break;
 		else if (ch == ';')
 		{
-			skip_line(f);
+			skip_line();
 			break;
 		}
 		else if (ch <= ' ')
@@ -1163,21 +1134,23 @@ enum Token read_token(void *f, char *buf, int len)
 		}
 		else if (ch == '0')
 		{
-			if (p < len) buf[p++] = p < len - 1 ? ch : 0;
-			ch = read_char(f);
+			if (p < sizeof(token_buf))
+				token_buf[p++] = p < sizeof(token_buf) - 1 ? ch : 0;
+			ch = read_char();
 			if ('0' <= ch && ch <= '9')
 			{
 				last_ch = ch;
-				read_chars(f, buf + p, len - p, is_oct);
+				read_chars(token_buf + p, sizeof(token_buf) - p, is_oct);
 				return Oct;
 			}
 			else if (ch == 'x')
 			{
-				if (p < len) buf[p++] = p < len - 1 ? ch : 0;
-				read_chars(f, buf + p, len - p, is_hex);
+				if (p < sizeof(token_buf))
+					token_buf[p++] = p < sizeof(token_buf) - 1 ? ch : 0;
+				read_chars(token_buf + p, sizeof(token_buf) - p, is_hex);
 				for (;;)
 				{
-					ch = read_char(f);
+					ch = read_char();
 					if (ch == -1 || ch == '\n' || ch > ' ')
 					{
 						last_ch = ch;
@@ -1194,23 +1167,23 @@ enum Token read_token(void *f, char *buf, int len)
 			else
 			{
 				last_ch = ch;
-				if (p < len) buf[p] = 0;
+				if (p < sizeof(token_buf)) token_buf[p] = 0;
 				return Int;
 			}
 		}
 		else if (is_num(ch))
 		{
 			last_ch = ch;
-			read_chars(f, buf, len, is_num);
+			read_chars(token_buf, sizeof(token_buf), is_num);
 			return Int;
 		}
 		else if (is_letter(ch))
 		{
 			last_ch = ch;
-			read_chars(f, buf, len, is_letter);
+			read_chars(token_buf, sizeof(token_buf), is_letter);
 			for (;;)
 			{
-				ch = read_char(f);
+				ch = read_char();
 				if (ch == -1 || ch == '\n' || ch > ' ')
 				{
 					last_ch = ch;
@@ -1226,15 +1199,15 @@ enum Token read_token(void *f, char *buf, int len)
 		}
 		else
 		{
-			if (p < len)
+			if (p < sizeof(token_buf))
 			{
-				buf[p++] = p < len - 1 ? ch : 0;
-				if (p < len) buf[p] = 0;
+				token_buf[p++] = p < sizeof(token_buf) - 1 ? ch : 0;
+				if (p < sizeof(token_buf)) token_buf[p] = 0;
 			}
 			return Sign;
 		}
 	}
-	if (p < len) buf[p] = 0;
+	if (p < sizeof(token_buf)) token_buf[p] = 0;
 	return EndL;
 }
 
@@ -1291,67 +1264,79 @@ uint64_t parse_hex(const char *hex)
 int parse_reg(const char *reg)
 {
 	char buf[8];
-	if ((reg[0] == 'r' || reg[0] == 'R') && is_num(reg[1])
+	char ch = reg[0];
+	if ((ch == 'r' || ch == 'R' || ch == 'f' || ch == 'F') && is_num(reg[1])
 		&& (reg[2] == 0 || (is_num(reg[2]) && reg[3] == 0)))
 		return (int)parse_uint(reg + 1);
 	to_lower(buf, sizeof(buf), reg);
 	return lsearch_string(regname, reglen, reg);
 }
 
-int parse_addr(void *f, int *r, int *disp)
+int get_reg(enum Token token, const char *msg)
 {
-	char buf[32];
+	int ret;
+	if (token == Symbol && (ret = parse_reg(token_buf)) != -1)
+		return ret;
+	if (!msg) msg = "register";
+	printf("%d: error: %s required: %s\n", curline, msg, token_buf);
+	if (token != EndL) skip_line();
+	return -1;
+}
+
+int read_reg(const char *msg)
+{
+	return get_reg(read_token(), msg);
+}
+
+int read_sign(const char *sign)
+{
+	enum Token token = read_token();
+	if (token == Sign && strcmp(token_buf, sign) == 0) return 1;
+	printf("%d: error: '%s' required", curline, sign);
+	if (token_buf[0] != 0) printf(": %s", token_buf);
+	printf("\n");
+	if (token != EndL) skip_line();
+	return 1;
+}
+
+int parse_addr(int *r, int *disp)
+{
 	int sign = 1;
-	enum Token token = read_token(f, buf, sizeof(buf));
-	if (token == Sign && strcmp(buf, "-") == 0)
+	enum Token token = read_token();
+	if (token == Sign && strcmp(token_buf, "-") == 0)
 	{
 		sign = -1;
-		token = read_token(f, buf, sizeof(buf));
+		token = read_token();
 	}
 	if (token == Int)
 	{
-		*disp = ((int)parse_uint(buf)) * sign;
+		*disp = ((int)parse_uint(token_buf)) * sign;
 		sign = 0;
-		token = read_token(f, buf, sizeof(buf));
+		token = read_token();
 	}
 	else if (token == Hex)
 	{
-		*disp = ((int)parse_hex(buf + 2)) * sign;
+		*disp = ((int)parse_hex(token_buf + 2)) * sign;
 		sign = 0;
-		token = read_token(f, buf, sizeof(buf));
+		token = read_token();
 	}
-	if (!(token == Sign && strcmp(buf, "(") == 0))
+	if (!(token == Sign && strcmp(token_buf, "(") == 0))
 	{
 		if (sign != 0)
 		{
-			printf("%d: error: disp or addr is required: %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
+			printf("%d: error: disp or addr required: %s\n", curline, token_buf);
+			if (token != EndL) skip_line();
 			return 0;
 		}
 		else if (!(token == EndF || token == EndL))
 		{
-			printf("%d: error: disp or addr is required\n", curline);
+			printf("%d: error: disp or addr required\n", curline);
 			return 0;
 		}
 		*r = (int)Zero;
 	}
-	else
-	{
-		token = read_token(f, buf, sizeof(buf));
-		if (!(token == Symbol && (*r = parse_reg(buf)) != -1))
-		{
-			printf("%d: error: address is not register: %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
-			return 0;
-		}
-		token = read_token(f, buf, sizeof(buf));
-		if (!(token == Sign && strcmp(buf, ")") == 0))
-		{
-			printf("%d: error: must be ')': %s\n", curline, buf);
-			if (token != EndL) skip_line(f);
-			return 0;
-		}
-	}
+	else if ((*r = read_reg(0)) == -1 || !read_sign(")"))
+		return 0;
 	return 1;
 }
 
@@ -1362,7 +1347,7 @@ void write_code(int code)
 	curad += 4;
 }
 
-void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
+void assemble_mem(enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
 	int oph = ((int)op) >> 16, disp2;
 	if (disp < -0x8000)
@@ -1379,48 +1364,63 @@ void assemble_mem(void *f, enum Op op, enum Regs ra, enum Regs rb, int disp)
 	write_code((oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2);
 }
 
-void parse_mem(void *f, enum Op op)
+void parse_mov()
 {
-	char buf[32];
-	enum Token token = read_token(f, buf, sizeof(buf));
-	int ra, rb, disp;
-	if (!(token == Symbol && (ra = parse_reg(buf)) != -1))
-	{
-		printf("%d: error: operand 1 is not register: %s\n", curline, buf);
-		if (token != EndL) skip_line(f);
+	uint64_t v;
+	int ra = -1, rb;
+	enum Token token = read_token();
+	printf("%p: mov\n", (void *)curad);
+	if (token == Int)
+		v = parse_uint(token_buf);
+	else if (token == Hex)
+		v = parse_hex(token_buf + 2);
+	else if ((ra = get_reg(token, "value or register")) == -1)
 		return;
-	}
-	token = read_token(f, buf, sizeof(buf));
-	if (!(token == Sign && strcmp(buf, ",") == 0))
+	if (!read_sign(",") || (rb = read_reg(0)) == -1) return;
+	if (ra == -1)
 	{
-		printf("%d: error: comma required before: %s\n", curline, buf);
-		if (token != EndL) skip_line(f);
-		return;
+		if (v < 0x10000)
+			assemble_mem(Lda, (enum Regs)rb, Zero, (int)v);
+		else if ((v >> 32) > 0)
+			printf("%d: error: operand is too big\n", curline);
+		else if ((v & 0xffff) != 0)
+			printf("%d: error: low 16bits is not 0: %08x\n", curline, (int)v);
+		else
+			assemble_mem(Ldah, (enum Regs)rb, Zero, (int)(v >> 16));
 	}
-	if (parse_addr(f, &rb, &disp))
-		assemble_mem(f, op, (enum Regs)ra, (enum Regs)rb, disp);
+	else
+	{
+		printf("%d: not implemented: mov r%d, r%d\n", curline, ra, rb);
+	}
 }
 
-void assemble_op(void *f, enum Op op)
+void parse_mem(enum Op op)
+{
+	int ra = read_reg(0), rb, disp;
+	if (ra != -1 && read_sign(",") && parse_addr(&rb, &disp))
+		assemble_mem(op, (enum Regs)ra, (enum Regs)rb, disp);
+}
+
+void assemble_op(enum Op op)
 {
 	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
 	if (oph == 0x18) opl = 0;
-	printf("%08x: %s\n", (long)curad, subops[oph][opl]);
 	switch (formats[oph])
 	{
 	case Mem:
-		parse_mem(f, op);
+		printf("%p: %s\n", (void *)curad, subops[oph][opl]);
+		parse_mem(op);
 		break;
 	default:
-		skip_line(f);
+		printf("%p: %s: not implemented\n", (void *)curad, subops[oph][opl]);
+		skip_line();
 		break;
 	}
 }
 
-void assemble(void *f)
+void assemble()
 {
 	enum Token token;
-	char buf[32], bufl[32];
 	text_addr = curad = 0;
 	text_size = 0;
 	line = 1;
@@ -1428,13 +1428,13 @@ void assemble(void *f)
 	for (;;)
 	{
 		curline = line;
-		token = read_token(f, buf, sizeof(buf));
+		token = read_token();
 		if (token == EndF) break;
 		switch (token)
 		{
 		case Addr:
 			{
-				uint64_t h = parse_hex(buf + 2);
+				uint64_t h = parse_hex(token_buf + 2);
 				if (curad == 0) text_addr = h;
 				curad = h;
 				break;
@@ -1444,20 +1444,23 @@ void assemble(void *f)
 		case Symbol:
 			{
 				int opn;
-				to_lower(bufl, sizeof(bufl), buf);
-				opn = search_op(bufl);
+				char buf[32];
+				to_lower(buf, sizeof(buf), token_buf);
+				opn = search_op(buf);
 				if (opn != -1)
-					assemble_op(f, opcodes[opn]);
+					assemble_op(opcodes[opn]);
+				else if (strcmp(buf, "mov") == 0)
+					parse_mov();
 				else
 				{
 					printf("%d: error: %s\n", curline, buf);
-					skip_line(f);
+					skip_line();
 				}
 			}
 			break;
 		default:
-			printf("%d: error: %s\n", curline, buf);
-			skip_line(f);
+			printf("%d: error: %s\n", curline, token_buf);
+			skip_line();
 			break;
 		}
 	}
@@ -1480,11 +1483,11 @@ int main()
 		strcat(src, ".asm");
 		strcat(dst, ".out");
 		printf("%s -> %s\n", src, dst);
-		f = fopen(src, "r");
-		if (f)
+		file = fopen(src, "r");
+		if (file)
 		{
-			assemble(f);
-			fclose(f);
+			assemble();
+			fclose(file);
 			printf("text_addr: 0x%08x\n", text_addr);
 			printf("text_size: 0x%08x\n", text_size);
 			f = fopen(dst, "wb");
