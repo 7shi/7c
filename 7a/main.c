@@ -46,23 +46,6 @@ int search_op(const char *mne)
 	return bsearch_string(opnames, mne, 0, oplen - 1);
 }
 
-enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
-{
-	enum Op op = UNDEF;
-	int opc = (int)(code >> 26);
-	const char *mne = "";
-	switch (formats[opc])
-	{
-		default:
-			if (op == UNDEF)
-				fprintf(f, "opc%02x %08x", opc, code & 0x03ffffff);
-			else
-				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
-			return op;
-	}
-	return UNDEF;
-}
-
 uint64_t text_addr, text_size, curad;
 char text_buf[65536];
 int line, curline;
@@ -433,14 +416,14 @@ void write_code(int code)
 	curad += 4;
 }
 
-void assemble_opc(int opc, int num)
+void assemble_pcd(int op1, int num)
 {
-	if (opc < 0 || opc > 0x3f)
-		printf("%d: error: opcode is over 6bit: %x\n", curline, opc);
+	if (op1 < 0 || op1 > 0x3f)
+		printf("%d: error: opcode is over 6bit: %x\n", curline, op1);
 	else if (num < 0 || num > 0x03ffffff)
 		printf("%d: error: num is over 26bit: %x\n", curline, num);
 	else
-		write_code((opc << 26) | num);
+		write_code((op1 << 26) | num);
 }
 
 void assemble_bra(enum Op op, enum Regs ra, int disp)
@@ -705,9 +688,8 @@ void assemble_pop(enum POp pop)
 
 void assemble_op(enum Op op)
 {
-	int oph = ((int)op) >> 16, opl = ((int)op) & 0xffff;
-	if (oph == 0x18) opl = 0;
-	switch (formats[oph])
+	int op1 = ((int)op) >> 16;
+	switch (formats[op1])
 	{
 	case Bra: parse_bra(op); break;
 	case Mem: parse_mem(op); break;
@@ -716,10 +698,47 @@ void assemble_op(enum Op op)
 	case Opr: parse_opr(op); break;
 	case F_P: parse_fp (op); break;
 	default:
-		printf("%p: %s: not implemented\n", (void *)curad, subops[oph][opl]);
-		skip_line();
-		break;
+		{
+			uint64_t num;
+			if (parse_value(&num)) assemble_pcd(op1, (int)num);
+			break;
+		}
 	}
+}
+
+int assemble_token(enum Token token)
+{
+	switch (token)
+	{
+	case Addr:
+		{
+			uint64_t h = parse_hex(token_buf + 2);
+			if (curad == 0) text_addr = h;
+			curad = h;
+			return 1;
+		}
+	case EndL:
+		return 1;
+	case Symbol:
+		{
+			int opn;
+			char buf[32];
+			to_lower(buf, sizeof(buf), token_buf);
+			if ((opn = search_op(buf)) != -1)
+				assemble_op(opcodes[opn]);
+			else if ((opn = lsearch_string(popnames, poplen, buf)) != -1)
+				assemble_pop((enum POp)opn);
+			else if (buf[0] == 'o' && buf[1] == 'p' && buf[2] == 'c')
+			{
+				int op1 = (int)parse_uint(buf + 3);
+				uint64_t num;
+				if (!parse_value(&num)) return 0;
+				assemble_pcd(op1, (int)num);
+			}
+			return 1;
+		}
+	}
+	return 0;
 }
 
 void assemble()
@@ -734,37 +753,10 @@ void assemble()
 		curline = line;
 		token = read_token();
 		if (token == EndF) break;
-		switch (token)
+		if (!assemble_token(token))
 		{
-		case Addr:
-			{
-				uint64_t h = parse_hex(token_buf + 2);
-				if (curad == 0) text_addr = h;
-				curad = h;
-				break;
-			}
-		case EndL:
-			break;
-		case Symbol:
-			{
-				int opn;
-				char buf[32];
-				to_lower(buf, sizeof(buf), token_buf);
-				if ((opn = search_op(buf)) != -1)
-					assemble_op(opcodes[opn]);
-				else if ((opn = lsearch_string(popnames, poplen, buf)) != -1)
-					assemble_pop((enum POp)opn);
-				else
-				{
-					printf("%d: error: %s\n", curline, buf);
-					skip_line();
-				}
-				break;
-			}
-		default:
 			printf("%d: error: %s\n", curline, token_buf);
 			skip_line();
-			break;
 		}
 	}
 	text_size = curad - text_addr;
