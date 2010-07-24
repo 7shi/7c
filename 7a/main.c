@@ -46,41 +46,9 @@ int search_op(const char *mne)
 	return bsearch_string(opnames, mne, 0, oplen - 1);
 }
 
-enum Op get_op(uint32_t code)
-{
-	int op = (int)(code >> 26), subop = 0;
-	switch (op)
-	{
-		case 0x14:
-		case 0x15:
-		case 0x16:
-		case 0x17: subop = (code >> 5) & 0x7ff; break;
-		case 0x18:
-			switch (code & 0xffff)
-			{
-				case 0x0000: return Trapb;
-				case 0x0400: return Excb;
-				case 0x4000: return Mb;
-				case 0x4400: return Wmb;
-				case 0x8000: return Fetch;
-				case 0xa000: return Fetch_m;
-				case 0xc000: return Rpcc;
-				case 0xe000: return Rc;
-				case 0xf000: return Rs;
-				case 0xe800: return Ecb;
-				case 0xf800: return Wh64;
-				case 0xfc00: return Wh64en;
-				default: return UNDEF;
-			}
-			break;
-		case 0x1a: subop = (code >> 14) & 3; break;
-	}
-	return subops[op][subop] ? (enum Op)((op << 16) | subop) : UNDEF;
-}
-
 enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 {
-	enum Op op = get_op(code);
+	enum Op op = UNDEF;
 	int opc = (int)(code >> 26);
 	const char *mne = "";
 	switch (formats[opc])
@@ -91,21 +59,6 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 			else
 				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
 			return op;
-		case Bra:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int disp = code & 0x001fffff;
-				char sdisp[32];
-				if (disp < 0x00100000)
-					sprintf(sdisp, "%08x", addr + disp * 4 + 4);
-				else
-					sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
-				if (ra == 31 && op == Br)
-					fprintf(f, "br 0x%s", sdisp);
-				else
-					fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
-				return op;
-			}
 		case Mfc:
 			{
 				int ra = (int)((code >> 21) & 31);
@@ -539,21 +492,51 @@ void write_code(int code)
 	curad += 4;
 }
 
+void assemble_opc(int opc, int num)
+{
+	if (opc < 0 || opc > 0x3f)
+		printf("%d: error: opcode is over 6bit: %x\n", curline, opc);
+	else if (num < 0 || num > 0x03ffffff)
+		printf("%d: error: num is over 26bit: %x\n", curline, num);
+	else
+		write_code((opc << 26) | num);
+}
+
+void assemble_bra(enum Op op, enum Regs ra, int disp)
+{
+	int op1 = ((int)op) >> 16 << 26;
+	if (disp < -0x100000)
+		printf("%d: error: disp < -0x100000: -%x\n", curline, -disp);
+	else if (disp > 0xfffff)
+		printf("%d: error: disp > 0xfffff: %x\n", curline, disp);
+	else
+		write_code(op1 | (((int)ra) << 21) | (((unsigned int)disp) & 0x1fffff));
+}
+
 void assemble_mem(enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
-	int op1 = ((int)op) >> 16, disp2;
+	int op1 = ((int)op) >> 16 << 26;
 	if (disp < -0x8000)
-	{
 		printf("%d: error: disp < -0x8000: -%x\n", curline, -disp);
-		disp = -0x8000;
-	}
 	else if (disp > 0x7fff)
-	{
 		printf("%d: error: disp > 0x7fff: %x\n", curline, disp);
-		disp = 0x7fff;
-	}
-	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
-	write_code((op1 << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2);
+	else
+		write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | (uint16_t)(int16_t)disp);
+}
+
+void assemble_mfc(enum Op op, enum Regs ra, enum Regs rb)
+{
+	int op1 = ((int)op) >> 16 << 26, op2 = ((int)op) & 0xffff;
+	write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | op2);
+}
+
+void assemble_mbr(enum Op op, enum Regs ra, enum Regs rb, int hint)
+{
+	int op1 = ((int)op) >> 16 << 26, op2 = ((int)op) & 0x3fff;
+	if (hint < 0 || hint > 3)
+		printf("%d: error: hint is over 2bit: %d\n", curline, hint);
+	else
+		write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | (hint << 14) | op2);
 }
 
 void assemble_opr(enum Op op, enum Regs ra, enum Regs rb, enum Regs rc)
@@ -566,9 +549,55 @@ void assemble_opr_value(enum Op op, enum Regs ra, int vb, enum Regs rc)
 {
 	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 0x7f) << 5;
 	if (vb < 0 || vb > 255)
-		printf("%d: error: lit is not 8bit: %d\n", curline, vb);
+		printf("%d: error: literal is over 8bit: %d\n", curline, vb);
 	else
 		write_code(op1 | (((int)ra) << 21) | (vb << 13) | 0x1000 | op2 | (int)rc);
+}
+
+void assemble_fp(enum Op op, enum Regs fa, enum Regs fb, enum Regs fc)
+{
+	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 0x7ff) << 5;
+	write_code(op1 | (((int)fa) << 21) | (((int)fb) << 16) | op2 | (int)fc);
+}
+
+void parse_bra(enum Op op)
+{
+	enum Token token = read_token();
+	enum Regs ra;
+	if (token == Symbol && parse_reg(&ra, token_buf))
+	{
+		read_sign(",");
+		token = read_token();
+	}
+	else
+	{
+		if (op != Br)
+		{
+			printf("%d: error: register required: %s\n", curline, token_buf);
+			return;
+		}
+		ra = Zero;
+	}
+	switch (token)
+	{
+	case Hex:
+		{
+			int64_t ad1 = (int64_t)(curad + 4);
+			int64_t ad2 = (int64_t)parse_hex(token_buf + 2);
+			int diff = (int)(ad2 - ad1);
+			if ((diff & 3) != 0)
+				printf("%d: error: not align 4: %s\n", curline, token_buf);
+			else
+				assemble_bra(op, ra, diff >> 2);
+			break;
+		}
+	case Symbol:
+		printf("%d: error: label is not implemented: %s\n", curline, token_buf);
+		break;
+	default:
+		printf("%d: error: address or label required: %s\n", curline, token_buf);
+		break;
+	}
 }
 
 void parse_mov()
@@ -672,6 +701,9 @@ void assemble_op(enum Op op)
 	if (oph == 0x18) opl = 0;
 	switch (formats[oph])
 	{
+	case Bra:
+		parse_bra(op);
+		break;
 	case Mem:
 		parse_mem(op);
 		break;
