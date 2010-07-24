@@ -16,34 +16,34 @@ enum Op get_op(uint32_t code)
 	int op = (int)(code >> 26), subop = 0;
 	switch (op)
 	{
-		case 0x10:
-		case 0x11:
-		case 0x12:
-		case 0x13: subop = (code >> 5) & 0x7f; break;
-		case 0x14:
-		case 0x15:
-		case 0x16:
-		case 0x17: subop = (code >> 5) & 0x7ff; break;
-		case 0x18:
-			switch (code & 0xffff)
-			{
-				case 0x0000: return Trapb;
-				case 0x0400: return Excb;
-				case 0x4000: return Mb;
-				case 0x4400: return Wmb;
-				case 0x8000: return Fetch;
-				case 0xa000: return Fetch_m;
-				case 0xc000: return Rpcc;
-				case 0xe000: return Rc;
-				case 0xf000: return Rs;
-				case 0xe800: return Ecb;
-				case 0xf800: return Wh64;
-				case 0xfc00: return Wh64en;
-				default: return UNDEF;
-			}
-			break;
-		case 0x1a: subop = (code >> 14) & 3; break;
-		case 0x1c: subop = (code >> 5) & 0x7f; break;
+	case 0x10:
+	case 0x11:
+	case 0x12:
+	case 0x13: subop = (code >> 5) & 0x7f; break;
+	case 0x14:
+	case 0x15:
+	case 0x16:
+	case 0x17: subop = (code >> 5) & 0x7ff; break;
+	case 0x18:
+		switch (code & 0xffff)
+		{
+		case 0x0000: return Trapb;
+		case 0x0400: return Excb;
+		case 0x4000: return Mb;
+		case 0x4400: return Wmb;
+		case 0x8000: return Fetch;
+		case 0xa000: return Fetch_m;
+		case 0xc000: return Rpcc;
+		case 0xe000: return Rc;
+		case 0xf000: return Rs;
+		case 0xe800: return Ecb;
+		case 0xf800: return Wh64;
+		case 0xfc00: return Wh64en;
+		default: return UNDEF;
+		}
+		break;
+	case 0x1a: subop = (code >> 14) & 3; break;
+	case 0x1c: subop = (code >> 5) & 0x7f; break;
 	}
 	return subops[op][subop] ? (enum Op)((op << 16) | subop) : UNDEF;
 }
@@ -60,219 +60,219 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 	const char *mne = get_mnemonic(op);
 	switch (formats[opc])
 	{
-		default:
-			if (op == UNDEF)
-				fprintf(f, "opc%02x %08x", opc, code & 0x03ffffff);
+	default:
+		if (op == UNDEF)
+			fprintf(f, "opc%02x %08x", opc, code & 0x03ffffff);
+		else
+			fprintf(f, "%s %08x", mne, code & 0x03ffffff);
+		return op;
+	case Bra:
+		{
+			int ra = (int)((code >> 21) & 31);
+			int disp = code & 0x001fffff;
+			char sdisp[32];
+			if (disp < 0x00100000)
+				sprintf(sdisp, "%08x", addr + disp * 4 + 4);
 			else
-				fprintf(f, "%s %08x", mne, code & 0x03ffffff);
+				sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
+			if (ra == 31 && op == Br)
+				fprintf(f, "br 0x%s", sdisp);
+			else
+				fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
 			return op;
-		case Bra:
+		}
+	case Mem:
+		{
+			int ra = (int)((code >> 21) & 31);
+			int rb = (int)((code >> 16) & 31);
+			int disp = (int)(code & 0xffff);
+			char args[32];
+			if (disp < 10)
+				sprintf(args, "%d(%s)", disp, regname[rb]);
+			else if (disp < 0x8000)
+				sprintf(args, "0x%x(%s)", disp, regname[rb]);
+			else
 			{
-				int ra = (int)((code >> 21) & 31);
-				int disp = code & 0x001fffff;
-				char sdisp[32];
-				if (disp < 0x00100000)
-					sprintf(sdisp, "%08x", addr + disp * 4 + 4);
+				int disp2 = 0x10000 - disp;
+				if (disp2 < 10)
+					sprintf(args, "-%d(%s)", disp2, regname[rb]);
 				else
-					sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
-				if (ra == 31 && op == Br)
-					fprintf(f, "br 0x%s", sdisp);
-				else
-					fprintf(f, "%s %s,0x%s", mne, regname[ra], sdisp);
+					sprintf(args, "-0x%x(%s)", disp2, regname[rb]);
+			}
+			if (op == Ldt || op == Stt)
+			{
+				fprintf(f, "%s f%d,%s", mne, ra, args);
 				return op;
 			}
-		case Mem:
+			else if (rb == 31 && op == Lda)
 			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				int disp = (int)(code & 0xffff);
-				char args[32];
-				if (disp < 10)
-					sprintf(args, "%d(%s)", disp, regname[rb]);
-				else if (disp < 0x8000)
-					sprintf(args, "0x%x(%s)", disp, regname[rb]);
-				else
+				fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
+				return op;
+			}
+			else if (rb == 31 && op == Ldah)
+			{
+				fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
+				return op;
+			}
+			else if (ra == 31)
+			{
+				if (disp == 0 && op == Ldq_u)
 				{
-					int disp2 = 0x10000 - disp;
-					if (disp2 < 10)
-						sprintf(args, "-%d(%s)", disp2, regname[rb]);
-					else
-						sprintf(args, "-0x%x(%s)", disp2, regname[rb]);
-				}
-				if (op == Ldt || op == Stt)
-				{
-					fprintf(f, "%s f%d,%s", mne, ra, args);
+					fprintf(f, "unop");
 					return op;
 				}
-				else if (rb == 31 && op == Lda)
-				{
-					fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
-					return op;
-				}
-				else if (rb == 31 && op == Ldah)
-				{
-					fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
-					return op;
-				}
-				else if (ra == 31)
-				{
-					if (disp == 0 && op == Ldq_u)
-					{
-						fprintf(f, "unop");
-						return op;
-					}
-					else
-					{
-						const char *pse = 0;
-						switch (op)
-						{
-							case Ldl: pse = "prefetch"; break;
-							case Ldq: pse = "prefetch_en"; break;
-							case Lds: pse = "prefetch_m"; break;
-							case Ldt: pse = "prefetch_men"; break;
-						}
-						if (pse)
-						{
-							fprintf(f, "%s %s", pse, args);
-							return op;
-						}
-					}
-				}
-				fprintf(f, "%s %s,%s", mne, regname[ra], args);
-				return op;
-			}
-		case Mfc:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				fprintf(f, "%s %s,%s", mne, regname[ra], regname[rb]);
-				return op;
-			}
-		case Mbr:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = (int)((code >> 16) & 31);
-				int hint = (int)(code & 0x3fff);
-				if (op == Ret && ra == Zero && rb == RA && hint == 1)
-					fprintf(f, "%s", mne);
 				else
-					fprintf(f, "%s %s,(%s),0x%04x", mne, regname[ra], regname[rb], hint);
-				return op;
-			}
-		case Opr:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = -1;
-				int rc = (int)(code & 31);
-				char arg2[32];
-				if ((code & 0x1000) == 0)
-				{
-					rb = (int)((code >> 16) & 31);
-					strcpy(arg2, regname[rb]);
-				}
-				else
-					sprintf(arg2, "0x%02x", (code >> 13) & 0xff);
-				if (ra == 31)
 				{
 					const char *pse = 0;
 					switch (op)
 					{
-						case Bis:
-							if (rb == 31 && rc == 31)
-							{
-								fprintf(f, "nop");
-								return op;
-							}
-							else if (rb == 31)
-							{
-								fprintf(f, "clr %s", regname[rc]);
-								return op;
-							}
-							else
-								pse = "mov";
-							break;
-						case Addl: pse = "sextl"; break;
-						case Ornot: pse = "not"; break;
-						case Subl: pse = "negl"; break;
-						case Subl__v: pse = "negl/v"; break;
-						case Subq: pse = "negq"; break;
-						case Subq__v: pse = "negq/v"; break;
+					case Ldl: pse = "prefetch"; break;
+					case Ldq: pse = "prefetch_en"; break;
+					case Lds: pse = "prefetch_m"; break;
+					case Ldt: pse = "prefetch_men"; break;
 					}
 					if (pse)
 					{
-						fprintf(f, "%s %s,%s", pse, arg2, regname[rc]);
+						fprintf(f, "%s %s", pse, args);
 						return op;
 					}
 				}
-				fprintf(f, "%s %s,%s,%s", mne, regname[ra], arg2, regname[rc]);
-				return op;
 			}
-		case F_P:
+			fprintf(f, "%s %s,%s", mne, regname[ra], args);
+			return op;
+		}
+	case Mfc:
+		{
+			int ra = (int)((code >> 21) & 31);
+			int rb = (int)((code >> 16) & 31);
+			fprintf(f, "%s %s,%s", mne, regname[ra], regname[rb]);
+			return op;
+		}
+	case Mbr:
+		{
+			int ra = (int)((code >> 21) & 31);
+			int rb = (int)((code >> 16) & 31);
+			int hint = (int)(code & 0x3fff);
+			if (op == Ret && ra == Zero && rb == RA && hint == 1)
+				fprintf(f, "%s", mne);
+			else
+				fprintf(f, "%s %s,(%s),0x%04x", mne, regname[ra], regname[rb], hint);
+			return op;
+		}
+	case Opr:
+		{
+			int ra = (int)((code >> 21) & 31);
+			int rb = -1;
+			int rc = (int)(code & 31);
+			char arg2[32];
+			if ((code & 0x1000) == 0)
 			{
-				int fa = (int)((code >> 21) & 31);
-				int fb = (int)((code >> 16) & 31);
-				int fc = (int)(code & 31);
-				int pst = 2;
-				const char *pse = 0;
-				if (fa == 31)
-					switch (op)
-					{
-						case Cpys:
-							if (fb == 31 && fc == 31)
-							{
-								pst = 0;
-								pse = "fnop";
-							}
-							else if (fb == 31)
-							{
-								pst = 1;
-								pse = "fclr";
-							}
-							else
-								pse = "fabs";
-							break;
-						case Subf: pse = "negf"; break;
-						case Subf__s: pse = "negf/s"; break;
-						case Subg: pse = "negg"; break;
-						case Subg__s: pse = "negg/s"; break;
-						case Subs: pse = "negs"; break;
-						case Subs__su: pse = "negs/su"; break;
-						case Subs__sui: pse = "negs/sui"; break;
-						case Subt: pse = "negt"; break;
-						case Subt__su: pse = "negt/su"; break;
-						case Subt__sui: pse = "negt/sui"; break;
-					};
-				if (pse == 0 && fa == fb)
-					switch (op)
-					{
-						case Cpys: pse = "fmov"; break;
-						case Cpysn: pse = "fneg"; break;
-					}
-				if (pse == 0 && fa == fb && fb == fc)
-					switch (op)
-					{
-						case Mf_fpcr:
-						case Mt_fpcr:
-							pst = 1;
-							pse = mne;
-							break;
-					}
-				if (pse)
-					switch (pst)
-					{
-						case 0:
-							fprintf(f, "%s", pse);
-							return op;
-						case 1:
-							fprintf(f, "%s f%d", pse, fc);
-							return op;
-						case 2:
-							fprintf(f, "%s f%d,f%d", pse, fb, fc);
-							return op;
-					}
-				fprintf(f, "%s f%d,f%d,f%d", mne, fa, fb, fc);
-				return op;
+				rb = (int)((code >> 16) & 31);
+				strcpy(arg2, regname[rb]);
 			}
+			else
+				sprintf(arg2, "0x%02x", (code >> 13) & 0xff);
+			if (ra == 31)
+			{
+				const char *pse = 0;
+				switch (op)
+				{
+				case Bis:
+					if (rb == 31 && rc == 31)
+					{
+						fprintf(f, "nop");
+						return op;
+					}
+					else if (rb == 31)
+					{
+						fprintf(f, "clr %s", regname[rc]);
+						return op;
+					}
+					else
+						pse = "mov";
+					break;
+				case Addl: pse = "sextl"; break;
+				case Ornot: pse = "not"; break;
+				case Subl: pse = "negl"; break;
+				case Subl__v: pse = "negl/v"; break;
+				case Subq: pse = "negq"; break;
+				case Subq__v: pse = "negq/v"; break;
+				}
+				if (pse)
+				{
+					fprintf(f, "%s %s,%s", pse, arg2, regname[rc]);
+					return op;
+				}
+			}
+			fprintf(f, "%s %s,%s,%s", mne, regname[ra], arg2, regname[rc]);
+			return op;
+		}
+	case F_P:
+		{
+			int fa = (int)((code >> 21) & 31);
+			int fb = (int)((code >> 16) & 31);
+			int fc = (int)(code & 31);
+			int pst = 2;
+			const char *pse = 0;
+			if (fa == 31)
+				switch (op)
+			{
+				case Cpys:
+					if (fb == 31 && fc == 31)
+					{
+						pst = 0;
+						pse = "fnop";
+					}
+					else if (fb == 31)
+					{
+						pst = 1;
+						pse = "fclr";
+					}
+					else
+						pse = "fabs";
+					break;
+				case Subf: pse = "negf"; break;
+				case Subf__s: pse = "negf/s"; break;
+				case Subg: pse = "negg"; break;
+				case Subg__s: pse = "negg/s"; break;
+				case Subs: pse = "negs"; break;
+				case Subs__su: pse = "negs/su"; break;
+				case Subs__sui: pse = "negs/sui"; break;
+				case Subt: pse = "negt"; break;
+				case Subt__su: pse = "negt/su"; break;
+				case Subt__sui: pse = "negt/sui"; break;
+			};
+			if (pse == 0 && fa == fb)
+				switch (op)
+			{
+				case Cpys: pse = "fmov"; break;
+				case Cpysn: pse = "fneg"; break;
+			}
+			if (pse == 0 && fa == fb && fb == fc)
+				switch (op)
+			{
+				case Mf_fpcr:
+				case Mt_fpcr:
+					pst = 1;
+					pse = mne;
+					break;
+			}
+			if (pse)
+				switch (pst)
+			{
+				case 0:
+					fprintf(f, "%s", pse);
+					return op;
+				case 1:
+					fprintf(f, "%s f%d", pse, fc);
+					return op;
+				case 2:
+					fprintf(f, "%s f%d,f%d", pse, fb, fc);
+					return op;
+			}
+			fprintf(f, "%s f%d,f%d,f%d", mne, fa, fb, fc);
+			return op;
+		}
 	}
 	return UNDEF;
 }
