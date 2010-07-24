@@ -51,10 +51,6 @@ enum Op get_op(uint32_t code)
 	int op = (int)(code >> 26), subop = 0;
 	switch (op)
 	{
-		case 0x10:
-		case 0x11:
-		case 0x12:
-		case 0x13: subop = (code >> 5) & 0x7f; break;
 		case 0x14:
 		case 0x15:
 		case 0x16:
@@ -78,7 +74,6 @@ enum Op get_op(uint32_t code)
 			}
 			break;
 		case 0x1a: subop = (code >> 14) & 3; break;
-		case 0x1c: subop = (code >> 5) & 0x7f; break;
 	}
 	return subops[op][subop] ? (enum Op)((op << 16) | subop) : UNDEF;
 }
@@ -127,54 +122,6 @@ enum Op disassemble(FILE *f, uint64_t addr, uint32_t code)
 					fprintf(f, "%s", mne);
 				else
 					fprintf(f, "%s %s,%s,0x%04x", mne, regname[ra], regname[rb], disp);
-				return op;
-			}
-		case Opr:
-			{
-				int ra = (int)((code >> 21) & 31);
-				int rb = -1;
-				int rc = (int)(code & 31);
-				char arg2[32];
-				if ((code & 0x1000) == 0)
-				{
-					rb = (int)((code >> 16) & 31);
-					strcpy(arg2, regname[rb]);
-				}
-				else
-					sprintf(arg2, "0x%02x", (code >> 13) & 0xff);
-				if (ra == 31)
-				{
-					const char *pse = 0;
-					switch (op)
-					{
-						case Bis:
-							if (rb == 31 && rc == 31)
-							{
-								fprintf(f, "nop");
-								return op;
-							}
-							else if (rb == 31)
-							{
-								fprintf(f, "clr %s", regname[rc]);
-								return op;
-							}
-							else
-								pse = "mov";
-							break;
-						case Addl: pse = "sextl"; break;
-						case Ornot: pse = "not"; break;
-						case Subl: pse = "negl"; break;
-						case Subl__v: pse = "negl/v"; break;
-						case Subq: pse = "negq"; break;
-						case Subq__v: pse = "negq/v"; break;
-					}
-					if (pse)
-					{
-						fprintf(f, "%s %s,%s", pse, arg2, regname[rc]);
-						return op;
-					}
-				}
-				fprintf(f, "%s %s,%s,%s", mne, regname[ra], arg2, regname[rc]);
 				return op;
 			}
 		case F_P:
@@ -467,31 +414,45 @@ uint64_t parse_hex(const char *hex)
 	return ret;
 }
 
-int parse_reg(const char *reg)
+int parse_reg(enum Regs *reg, const char *s)
 {
-	char buf[8];
-	char ch = reg[0];
-	if ((ch == 'r' || ch == 'R' || ch == 'f' || ch == 'F') && is_num(reg[1])
-		&& (reg[2] == 0 || (is_num(reg[2]) && reg[3] == 0)))
-		return (int)parse_uint(reg + 1);
-	to_lower(buf, sizeof(buf), reg);
-	return lsearch_string(regname, reglen, reg);
+	char ch = s[0];
+	if ((ch == 'r' || ch == 'R' || ch == 'f' || ch == 'F') && is_num(s[1])
+		&& (s[2] == 0 || (is_num(s[2]) && s[3] == 0)))
+	{
+		int r = (int)parse_uint(s + 1);
+		if (0 <= r && r <= 31)
+		{
+			*reg = (enum Regs)r;
+			return 1;
+		}
+	}
+	else
+	{
+		char buf[8];
+		int r;
+		to_lower(buf, sizeof(buf), s);
+		r = lsearch_string(regname, reglen, buf);
+		if (r != -1)
+		{
+			*reg = (enum Regs)r;
+			return 1;
+		}
+	}
+	return 0;
 }
 
-int get_reg(enum Token token, const char *msg)
+int get_reg(enum Regs *reg, enum Token token, const char *msg)
 {
-	int ret;
-	if (token == Symbol && (ret = parse_reg(token_buf)) != -1)
-		return ret;
-	if (!msg) msg = "register";
-	printf("%d: error: %s required: %s\n", curline, msg, token_buf);
+	if (token == Symbol && parse_reg(reg, token_buf)) return 1;
+	printf("%d: error: %s required: %s\n", curline, msg ? msg : "register", token_buf);
 	if (token != EndL) skip_line();
-	return -1;
+	return 0;
 }
 
-int read_reg(const char *msg)
+int read_reg(enum Regs *reg, const char *msg)
 {
-	return get_reg(read_token(), msg);
+	return get_reg(reg, read_token(), msg);
 }
 
 int read_sign(const char *sign)
@@ -505,7 +466,7 @@ int read_sign(const char *sign)
 	return 1;
 }
 
-int parse_addr(int *r, int *disp)
+int parse_addr(enum Regs *reg, int *disp)
 {
 	int sign = 1;
 	enum Token token = read_token();
@@ -539,11 +500,36 @@ int parse_addr(int *r, int *disp)
 			printf("%d: error: disp or addr required\n", curline);
 			return 0;
 		}
-		*r = (int)Zero;
+		*reg = Zero;
 	}
-	else if ((*r = read_reg(0)) == -1 || !read_sign(")"))
+	else if (!read_reg(reg, 0) || !read_sign(")"))
 		return 0;
 	return 1;
+}
+
+int parse_reg_or_value(enum Regs *reg, uint64_t *v)
+{
+	enum Token token = read_token();
+	switch (token)
+	{
+	case Int:
+		*v = parse_uint(token_buf);
+		return 2;
+	case Hex:
+		*v = parse_hex(token_buf + 2);
+		return 2;
+	case Symbol:
+		if (get_reg(reg, token, "register or value"))
+			return 1;
+		break;
+	case EndL:
+	case EndF:
+		printf("%d: error: register or value required\n", curline);
+		return 0;
+	}
+	printf("%d: error: register or value required: %s\n", curline, token_buf);
+	if (token != EndL) skip_line();
+	return 0;
 }
 
 void write_code(int code)
@@ -555,7 +541,7 @@ void write_code(int code)
 
 void assemble_mem(enum Op op, enum Regs ra, enum Regs rb, int disp)
 {
-	int oph = ((int)op) >> 16, disp2;
+	int op1 = ((int)op) >> 16, disp2;
 	if (disp < -0x8000)
 	{
 		printf("%d: error: disp < -0x8000: -%x\n", curline, -disp);
@@ -567,42 +553,51 @@ void assemble_mem(enum Op op, enum Regs ra, enum Regs rb, int disp)
 		disp = 0x7fff;
 	}
 	if (disp < 0) disp2 = 0x10000 + disp; else disp2 = disp;
-	write_code((oph << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2);
+	write_code((op1 << 26) | (((int)ra) << 21) | (((int)rb) << 16) | disp2);
+}
+
+void assemble_opr(enum Op op, enum Regs ra, enum Regs rb, enum Regs rc)
+{
+	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 0x7f) << 5;
+	write_code(op1 | (((int)ra) << 21) | (((int)rb) << 16) | op2 | (int)rc);
+}
+
+void assemble_opr_value(enum Op op, enum Regs ra, int vb, enum Regs rc)
+{
+	int op1 = ((int)op) >> 16 << 26, op2 = (((int)op) & 0x7f) << 5;
+	if (vb < 0 || vb > 255)
+		printf("%d: error: lit is not 8bit: %d\n", curline, vb);
+	else
+		write_code(op1 | (((int)ra) << 21) | (vb << 13) | 0x1000 | op2 | (int)rc);
 }
 
 void parse_mov()
 {
-	uint64_t v;
-	int ra = -1, rb;
-	enum Token token = read_token();
-	printf("%p: mov\n", (void *)curad);
-	if (token == Int)
-		v = parse_uint(token_buf);
-	else if (token == Hex)
-		v = parse_hex(token_buf + 2);
-	else if ((ra = get_reg(token, "value or register")) == -1)
-		return;
-	if (!read_sign(",") || (rb = read_reg(0)) == -1) return;
-	if (ra == -1)
+	uint64_t va;
+	enum Regs ra, rb;
+	int t = 0;
+	if ((t = parse_reg_or_value(&ra, &va)) != 0 && read_sign(",") && read_reg(&rb, 0))
 	{
-		if (v < 0x10000)
-			assemble_mem(Lda, (enum Regs)rb, Zero, (int)v);
-		else if ((v >> 32) > 0)
-			printf("%d: error: operand is too big\n", curline);
-		else if ((v & 0xffff) != 0)
-			printf("%d: error: low 16bits is not 0: %08x\n", curline, (int)v);
+		if (t == 1)
+			assemble_opr(Bis, Zero, ra, rb);
 		else
-			assemble_mem(Ldah, (enum Regs)rb, Zero, (int)(v >> 16));
-	}
-	else
-	{
-		printf("%d: not implemented: mov r%d, r%d\n", curline, ra, rb);
+		{
+			if (va < 0x10000)
+				assemble_mem(Lda, rb, Zero, (int)va);
+			else if ((va >> 32) > 0)
+				printf("%d: error: operand is too big\n", curline);
+			else if ((va & 0xffff) != 0)
+				printf("%d: error: low 16bits is not 0: %08x\n", curline, (long)va);
+			else
+				assemble_mem(Ldah, rb, Zero, (int)(va >> 16));
+		}
 	}
 }
 
 void parse_mem(enum Op op)
 {
-	int ra, rb, disp;
+	enum Regs ra, rb;
+	int disp;
 	switch (op)
 	{
 	case Unop:
@@ -616,8 +611,57 @@ void parse_mem(enum Op op)
 			assemble_mem(op, Zero, (enum Regs)rb, disp);
 		break;
 	default:
-		if ((ra = read_reg(0)) != -1 && read_sign(",") && parse_addr(&rb, &disp))
-			assemble_mem(op, (enum Regs)ra, (enum Regs)rb, disp);
+		if (read_reg(&ra, 0) && read_sign(",") && parse_addr(&rb, &disp))
+			assemble_mem(op, ra, rb, disp);
+		break;
+	}
+}
+
+void parse_opr_2(enum Op op, enum Regs ra)
+{
+	enum Regs rb, rc;
+	uint64_t vb;
+	int t;
+	if ((t = parse_reg_or_value(&rb, &vb)) != 0 && read_sign(",") && read_reg(&rc, 0))
+	{
+		if (t == 1)
+			assemble_opr(op, ra, rb, rc);
+		else
+			assemble_opr_value(op, ra, (int)vb, rc);
+	}
+}
+
+void parse_opr(enum Op op)
+{
+	enum Regs ra;
+	if (read_reg(&ra, 0) && read_sign(","))
+		parse_opr_2(op, ra);
+}
+
+void assemble_pop(enum POp pop)
+{
+	switch (pop)
+	{
+	case Mov:
+		parse_mov();
+		break;
+	case Nop:
+		assemble_opr(Bis, Zero, Zero, Zero);
+		break;
+	case Clr:
+		{
+			enum Regs rc;
+			if (read_reg(&rc, 0))
+				assemble_opr(Bis, Zero, Zero, (enum Regs)rc);
+			break;
+		}
+	case Sextl:
+	case Not:
+	case Negl:
+	case Negl__v:
+	case Negq:
+	case Negq__v:
+		parse_opr_2(popcodes[(int)pop], Zero);
 		break;
 	}
 }
@@ -629,8 +673,10 @@ void assemble_op(enum Op op)
 	switch (formats[oph])
 	{
 	case Mem:
-		printf("%p: %s\n", (void *)curad, subops[oph][opl]);
 		parse_mem(op);
+		break;
+	case Opr:
+		parse_opr(op);
 		break;
 	default:
 		printf("%p: %s: not implemented\n", (void *)curad, subops[oph][opl]);
@@ -667,18 +713,17 @@ void assemble()
 				int opn;
 				char buf[32];
 				to_lower(buf, sizeof(buf), token_buf);
-				opn = search_op(buf);
-				if (opn != -1)
+				if ((opn = search_op(buf)) != -1)
 					assemble_op(opcodes[opn]);
-				else if (strcmp(buf, "mov") == 0)
-					parse_mov();
+				else if ((opn = lsearch_string(popnames, poplen, buf)) != -1)
+					assemble_pop((enum POp)opn);
 				else
 				{
 					printf("%d: error: %s\n", curline, buf);
 					skip_line();
 				}
+				break;
 			}
-			break;
 		default:
 			printf("%d: error: %s\n", curline, token_buf);
 			skip_line();
