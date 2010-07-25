@@ -21,5 +21,4 @@ int fgetc(FILE *);
 int strcmp(const char *, const char *);
 char *strcpy(char *, const char *);
 char *strcat(char *, const char *);
-int strcmp(const char *, const char *);
 void *memset(void *, int, int);
