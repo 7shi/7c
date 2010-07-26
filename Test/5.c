@@ -10,7 +10,7 @@ void printstr(char *s)
     for (; *s; s++) printchar(*s);
 }
 
-void entry()
+void main()
 {
     printstr("Hello, World!");
 }

@@ -106,7 +106,7 @@ int printf(const char *format, ...)
     return ret;
 }
 
-void entry()
+void main()
 {
     int a, b, c, i, sum = 0;
     printf("%s, %s%c\n", "Hello", "World", '!');

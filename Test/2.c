@@ -1,4 +1,4 @@
-void entry()
+void main()
 {
     *((char *)0x10000000) = 'H';
     *((char *)0x10000000) = 'e';

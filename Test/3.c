@@ -5,7 +5,7 @@ void printchar(char ch)
     *((char *)PUTCHAR_ADDRESS) = ch;
 }
 
-void entry()
+void main()
 {
     printchar('H');
     printchar('e');

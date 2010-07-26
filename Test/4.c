@@ -2,7 +2,7 @@
 
 void printchar(char ch);
 
-void entry()
+void main()
 {
     printchar('H');
     printchar('e');
