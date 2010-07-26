@@ -769,13 +769,9 @@ int main()
 	init_table();
 	for (i = 1; i <= 6; i++)
 	{
-		char src[32] = "../Test/", dst[32];
-		char num[8] = "x";
-		num[0] = '0' + i;
-		strcat(src, num);
-		strcpy(dst, src);
-		strcat(src, ".asm");
-		strcat(dst, ".out");
+		char src[32], dst[32];
+		snprintf(src, sizeof(src), "../Test/%d.asm");
+		snprintf(dst, sizeof(dst), "../Test/%d.out");
 		printf("%s -> %s\n", src, dst);
 		file = fopen(src, "r");
 		if (file)

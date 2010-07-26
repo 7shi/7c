@@ -72,9 +72,9 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 			int disp = code & 0x001fffff;
 			char sdisp[32];
 			if (disp < 0x00100000)
-				sprintf(sdisp, "%08x", addr + disp * 4 + 4);
+				snprintf(sdisp, sizeof(sdisp), "%08x", addr + disp * 4 + 4);
 			else
-				sprintf(sdisp, "%08x", addr - (0x00200000 - disp) * 4 + 4);
+				snprintf(sdisp, sizeof(sdisp), "%08x", addr - (0x00200000 - disp) * 4 + 4);
 			if (ra == 31 && op == Br)
 				fprintf(f, "br 0x%s", sdisp);
 			else
@@ -88,16 +88,16 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 			int disp = (int)(code & 0xffff);
 			char args[32];
 			if (disp < 10)
-				sprintf(args, "%d(%s)", disp, regname[rb]);
+				snprintf(args, sizeof(args), "%d(%s)", disp, regname[rb]);
 			else if (disp < 0x8000)
-				sprintf(args, "0x%x(%s)", disp, regname[rb]);
+				snprintf(args, sizeof(args), "0x%x(%s)", disp, regname[rb]);
 			else
 			{
 				int disp2 = 0x10000 - disp;
 				if (disp2 < 10)
-					sprintf(args, "-%d(%s)", disp2, regname[rb]);
+					snprintf(args, sizeof(args), "-%d(%s)", disp2, regname[rb]);
 				else
-					sprintf(args, "-0x%x(%s)", disp2, regname[rb]);
+					snprintf(args, sizeof(args), "-0x%x(%s)", disp2, regname[rb]);
 			}
 			if (op == Ldt || op == Stt)
 			{
@@ -168,10 +168,10 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
 			if ((code & 0x1000) == 0)
 			{
 				rb = (int)((code >> 16) & 31);
-				strcpy(arg2, regname[rb]);
+				strncpy(arg2, regname[rb], sizeof(arg2));
 			}
 			else
-				sprintf(arg2, "0x%02x", (code >> 13) & 0xff);
+				snprintf(arg2, sizeof(arg2), "0x%02x", (code >> 13) & 0xff);
 			if (ra == 31)
 			{
 				const char *pse = 0;
@@ -388,12 +388,9 @@ int main()
 	init_table();
 	for (i = 1; i <= 6; i++)
 	{
-		char src[32] = "../Test/", dst[32];
-		char num[8] = "x";
-		num[0] = '0' + i;
-		strcat(src, num);
-		strcpy(dst, src);
-		strcat(dst, ".asm");
+		char src[32], dst[32];
+		snprintf(src, sizeof(src), "../Test/%d", i);
+		snprintf(dst, sizeof(dst), "../Test/%d.asm", i);
 		printf("%s -> %s\n", src, dst);
 		if (read_text(src))
 		{

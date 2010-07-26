@@ -104,12 +104,9 @@ int main()
 	int i;
 	for (i = 1; i <= 6; i++)
 	{
-		char src[32] = "../Test/", dst[32];
-		char num[8] = "x";
-		num[0] = '0' + i;
-		strcat(src, num);
-		strcpy(dst, src);
-		strcat(dst, ".bin");
+		char src[32], dst[32];
+		snprintf(src, sizeof(src), "../Test/%d", i);
+		snprintf(dst, sizeof(dst), "../Test/%d.bin", i);
 		printf("%s -> %s\n", src, dst);
 		if (read_text(src))
 		{

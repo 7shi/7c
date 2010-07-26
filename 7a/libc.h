@@ -9,8 +9,10 @@ typedef unsigned __int64 uint64_t;
 
 typedef void FILE;
 
+#define snprintf _snprintf
+
 int printf(const char *, ...);
-int sprintf(char *, const char *, ...);
+int snprintf(char *, int, const char *, ...);
 int fprintf(FILE *, const char *, ...);
 FILE *fopen(const char *, const char *);
 int fclose(FILE *);
@@ -19,6 +21,6 @@ int fwrite(const void *, int, int, FILE *);
 int fseek(FILE *, int, int);
 int fgetc(FILE *);
 int strcmp(const char *, const char *);
-char *strcpy(char *, const char *);
-char *strcat(char *, const char *);
+char *strncpy(char *, const char *, int);
+char *strncat(char *, const char *, int);
 void *memset(void *, int, int);
