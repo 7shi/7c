@@ -212,21 +212,13 @@ int fsnprintlong(long v, int w, char pad, FILE *f, char **sb, int *len)
     char *p, *start;
     unsigned long uv = (unsigned long)v;
     int ret = 0;
-    if (v == 0)
-    {
-        fsnputc('0', f, sb, len);
-        return 1;
-    }
-    else if (v < 0)
-    {
-        fsnputc('-', f, sb, len);
-        ret++;
-        uv = 0 - uv;
-    }
     p = buf + sizeof(buf) - 1;
     *p = '\0';
-    for (; uv; uv /= 10)
-        *(--p) = '0' + (uv % 10);
+    if (v == 0)
+        *(--p) = '0';
+    else
+        for (; v; v >>= 4)
+            *(--p) = "0123456789abcdef"[v & 15];
     if (w < 0) w = 0;
     if (w > sizeof(buf) - 1) w = sizeof(buf) - 1;
     start = buf + sizeof(buf) - 1 - w;
