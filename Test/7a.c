@@ -1582,15 +1582,20 @@ void assemble()
 #define CURDIR
 #endif
 
+const char *tests[] =
+{
+    "1", "2", "3", "4", "5", "6", "7t", "7d", "7a", 0
+};
+
 int main()
 {
-    int i;
+    const char **t;
     init_table();
-    for (i = 1; i <= 6; i++)
+    for (t = tests; *t; t++)
     {
         char src[32], dst[32];
-        snprintf(src, sizeof(src), CURDIR"%d.asm", i);
-        snprintf(dst, sizeof(dst), CURDIR"%d.out", i);
+        snprintf(src, sizeof(src), CURDIR"%s.asm", *t);
+        snprintf(dst, sizeof(dst), CURDIR"%s.out", *t);
         printf("%s -> %s\n", src, dst);
         file = fopen(src, "r");
         if (file)

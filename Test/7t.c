@@ -156,14 +156,19 @@ int read_text(const char *fn)
 #define CURDIR
 #endif
 
+const char *tests[] =
+{
+    "1", "2", "3", "4", "5", "6", "7t", "7d", "7a", 0
+};
+
 int main()
 {
-    int i;
-    for (i = 1; i <= 6; i++)
+    const char **t;
+    for (t = tests; *t; t++)
     {
         char src[32], dst[32];
-        snprintf(src, sizeof(src), CURDIR"%d", i);
-        snprintf(dst, sizeof(dst), CURDIR"%d.bin", i);
+        snprintf(src, sizeof(src), CURDIR"%s", *t);
+        snprintf(dst, sizeof(dst), CURDIR"%s.bin", *t);
         printf("%s -> %s\n", src, dst);
         if (read_text(src))
         {
