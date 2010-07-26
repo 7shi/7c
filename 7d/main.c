@@ -88,30 +88,26 @@ enum Op disassemble(void *f, uint64_t addr, uint32_t code)
             int disp = (int)(code & 0xffff);
             char args[32];
             if (disp < 10)
-                snprintf(args, sizeof(args), "%d(%s)", disp, regname[rb]);
+                snprintf(args, sizeof(args), "%d", disp);
             else if (disp < 0x8000)
-                snprintf(args, sizeof(args), "0x%x(%s)", disp, regname[rb]);
+                snprintf(args, sizeof(args), "0x%x", disp);
             else
             {
                 int disp2 = 0x10000 - disp;
                 if (disp2 < 10)
-                    snprintf(args, sizeof(args), "-%d(%s)", disp2, regname[rb]);
+                    snprintf(args, sizeof(args), "-%d", disp2);
                 else
-                    snprintf(args, sizeof(args), "-0x%x(%s)", disp2, regname[rb]);
+                    snprintf(args, sizeof(args), "-0x%x", disp2);
+            }
+            if (rb != 31)
+            {
+                strncat(args, "(", sizeof(args));
+                strncat(args, regname[rb], sizeof(args));
+                strncat(args, ")", sizeof(args));
             }
             if (op == Ldt || op == Stt)
             {
                 fprintf(f, "%s f%d,%s", mne, ra, args);
-                return op;
-            }
-            else if (rb == 31 && op == Lda)
-            {
-                fprintf(f, "mov 0x%04x,%s", disp, regname[ra]);
-                return op;
-            }
-            else if (rb == 31 && op == Ldah)
-            {
-                fprintf(f, "mov 0x%04x0000,%s", disp, regname[ra]);
                 return op;
             }
             else if (ra == 31)

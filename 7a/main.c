@@ -526,25 +526,9 @@ void parse_bra(enum Op op)
 
 void parse_mov()
 {
-    uint64_t va;
     enum Regs ra, rb;
-    int t = 0;
-    if ((t = parse_reg_or_value(&ra, &va)) != 0 && read_sign(",") && read_reg(&rb, 0))
-    {
-        if (t == 1)
-            assemble_opr(Bis, Zero, ra, rb);
-        else
-        {
-            if (va < 0x10000)
-                assemble_mem(Lda, rb, Zero, (int)va);
-            else if ((va >> 32) > 0)
-                printf("%d: error: operand is too big\n", curline);
-            else if ((va & 0xffff) != 0)
-                printf("%d: error: low 16bits is not 0: %08x\n", curline, (long)va);
-            else
-                assemble_mem(Ldah, rb, Zero, (int)(va >> 16));
-        }
-    }
+    if (read_reg(&ra, 0) && read_sign(",") && read_reg(&rb, 0))
+        assemble_opr(Bis, Zero, ra, rb);
 }
 
 void parse_mem(enum Op op)
