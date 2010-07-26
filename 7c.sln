@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C++ Express 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7t", "7t\7t.vcxproj", "{3137390F-92A8-45EC-B49F-5C962E4502AD}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7t", "vcproj\7t.vcxproj", "{3137390F-92A8-45EC-B49F-5C962E4502AD}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7d", "7d\7d.vcxproj", "{CBE3FBD9-D091-492A-BDE0-6E4A3D8E5755}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7d", "vcproj\7d.vcxproj", "{CBE3FBD9-D091-492A-BDE0-6E4A3D8E5755}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7a", "7a\7a.vcxproj", "{753C01C9-CE53-42FD-9D95-8D4B76879A70}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "7a", "vcproj\7a.vcxproj", "{753C01C9-CE53-42FD-9D95-8D4B76879A70}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
