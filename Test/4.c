@@ -1,25 +1,11 @@
-#define PUTCHAR_ADDRESS 0x10000000
+int (*fputc)(int, void *) = (void *)0x00ef0004;
 
-void printchar(char ch);
+void printstr(char *s)
+{
+    for (; *s; s++) fputc(*s, 0);
+}
 
 void main()
 {
-    printchar('H');
-    printchar('e');
-    printchar('l');
-    printchar('l');
-    printchar('o');
-    printchar(',');
-    printchar(' ');
-    printchar('W');
-    printchar('o');
-    printchar('r');
-    printchar('l');
-    printchar('d');
-    printchar('!');
-}
-
-void printchar(char ch)
-{
-    *((char *)PUTCHAR_ADDRESS) = ch;
+    printstr("Hello, World!\n");
 }

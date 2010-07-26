@@ -1,16 +1,19 @@
+int (*fputc)(int, void *) = (void *)0x00ef0004;
+
 void main()
 {
-    *((char *)0x10000000) = 'H';
-    *((char *)0x10000000) = 'e';
-    *((char *)0x10000000) = 'l';
-    *((char *)0x10000000) = 'l';
-    *((char *)0x10000000) = 'o';
-    *((char *)0x10000000) = ',';
-    *((char *)0x10000000) = ' ';
-    *((char *)0x10000000) = 'W';
-    *((char *)0x10000000) = 'o';
-    *((char *)0x10000000) = 'r';
-    *((char *)0x10000000) = 'l';
-    *((char *)0x10000000) = 'd';
-    *((char *)0x10000000) = '!';
+    fputc('H', 0);
+    fputc('e', 0);
+    fputc('l', 0);
+    fputc('l', 0);
+    fputc('o', 0);
+    fputc(',', 0);
+    fputc(' ', 0);
+    fputc('W', 0);
+    fputc('o', 0);
+    fputc('r', 0);
+    fputc('l', 0);
+    fputc('d', 0);
+    fputc('!', 0);
+    fputc('\n', 0);
 }
