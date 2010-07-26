@@ -13,10 +13,6 @@
   <ItemGroup>
     <ClCompile Include="main.c" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="alpha.h" />
-    <ClInclude Include="libc.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{753C01C9-CE53-42FD-9D95-8D4B76879A70}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>

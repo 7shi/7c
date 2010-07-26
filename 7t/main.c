@@ -1,4 +1,55 @@
-#include "../7a/libc.h"
+/* libc declaration */
+
+typedef short int16_t;
+typedef int int32_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef void FILE;
+
+#ifdef __alpha
+typedef long int64_t;
+typedef unsigned long uint64_t;
+
+void (*exit)(int) = (void *)0x00ef0000;
+int (*fputc)(int, FILE *) = (void *)0x00ef0004;
+int (*fgetc)(FILE *) = (void *)0x00ef0008;
+FILE *(*fopen)(const char *, const char *) = (void *)0x00ef000c;
+int (*fclose)(FILE *) = (void *)0x00ef0010;
+int (*fwrite)(const void *, int, int, FILE *) = (void *)0x00ef0014;
+int (*fread)(void *, int, int, FILE *) = (void *)0x00ef0018;
+int (*fseek)(FILE *, long, int) = (void *)0x00ef001c;
+
+int printf(const char *, ...);
+int fprintf(FILE *, const char *, ...);
+int snprintf(char *, int, const char *, ...);
+int strcmp(const char *, const char *);
+char *strncpy(char *, const char *, int);
+char *strncat(char *, const char *, int);
+void *memset(void *, int, int);
+#else
+typedef long long int64_t;
+typedef unsigned long long uint64_t;
+
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#endif
+
+int printf(const char *, ...);
+int snprintf(char *, int, const char *, ...);
+int fprintf(FILE *, const char *, ...);
+FILE *fopen(const char *, const char *);
+int fclose(FILE *);
+int fread(void *, int, int, FILE *);
+int fwrite(const void *, int, int, FILE *);
+int fseek(FILE *, int, int);
+int fgetc(FILE *);
+int strcmp(const char *, const char *);
+char *strncpy(char *, const char *, int);
+char *strncat(char *, const char *, int);
+void *memset(void *, int, int);
+#endif
+
+/* extractor implementation */
 
 uint64_t text_addr, text_size;
 char text_buf[65536];
@@ -99,14 +150,20 @@ int read_text(const char *fn)
     return ret;
 }
 
+#ifdef _MSC_VER
+#define CURDIR "../Test/"
+#else
+#define CURDIR
+#endif
+
 int main()
 {
     int i;
     for (i = 1; i <= 6; i++)
     {
         char src[32], dst[32];
-        snprintf(src, sizeof(src), "../Test/%d", i);
-        snprintf(dst, sizeof(dst), "../Test/%d.bin", i);
+        snprintf(src, sizeof(src), CURDIR"%d", i);
+        snprintf(dst, sizeof(dst), CURDIR"%d.bin", i);
         printf("%s -> %s\n", src, dst);
         if (read_text(src))
         {
