@@ -36,15 +36,13 @@ int printhex(unsigned long v, int w)
     char buf[32];
     char *p, *start;
     int ret = 0;
-    if (v == 0)
-    {
-        fputc('0', 0);
-        return 1;
-    }
     p = buf + sizeof(buf) - 1;
     *p = '\0';
-    for (; v; v >>= 4)
-        *(--p) = "0123456789abcdef"[v & 15];
+    if (v == 0)
+        *(--p) = '0';
+    else
+        for (; v; v >>= 4)
+            *(--p) = "0123456789abcdef"[v & 15];
     if (w < 0) w = 0;
     if (w > 16) w = 16;
     start = buf + sizeof(buf) - 1 - w;
