@@ -25,6 +25,7 @@ int snprintf(char *, int, const char *, ...);
 int strcmp(const char *, const char *);
 char *strncpy(char *, const char *, int);
 char *strncat(char *, const char *, int);
+int strlen(const char *);
 void *memset(void *, int, int);
 #else
 typedef long long int64_t;
@@ -1576,6 +1577,26 @@ void assemble()
     if (text_size > sizeof(text_buf)) text_size = sizeof(text_buf);
 }
 
+void exec(const char *src, const char *dst)
+{
+    printf("%s -> %s\n", src, dst);
+    file = fopen(src, "r");
+    if (file)
+    {
+        FILE *f;
+        assemble();
+        fclose(file);
+        printf("text_addr: 0x%08x\n", text_addr);
+        printf("text_size: 0x%08x\n", text_size);
+        f = fopen(dst, "wb");
+        if (f)
+        {
+            fwrite(text_buf, (int)text_size, 1, f);
+            fclose(f);
+        }
+    }
+}
+
 #ifdef _MSC_VER
 #define CURDIR "../Test/"
 #else
@@ -1587,30 +1608,36 @@ const char *tests[] =
     "1", "2", "3", "4", "5", "6", "7t", "7d", "7a", 0
 };
 
-int main()
+int main(int argc, char *argv[])
 {
-    const char **t;
     init_table();
-    for (t = tests; *t; t++)
+    if (argc < 2)
     {
-        char src[32], dst[32];
-        snprintf(src, sizeof(src), CURDIR"%s.asm", *t);
-        snprintf(dst, sizeof(dst), CURDIR"%s.out", *t);
-        printf("%s -> %s\n", src, dst);
-        file = fopen(src, "r");
-        if (file)
+        const char **t;
+        for (t = tests; *t; t++)
         {
-            FILE *f;
-            assemble();
-            fclose(file);
-            printf("text_addr: 0x%08x\n", text_addr);
-            printf("text_size: 0x%08x\n", text_size);
-            f = fopen(dst, "wb");
-            if (f)
+            char src[32], dst[32];
+            snprintf(src, sizeof(src), CURDIR"%s.asm", *t);
+            snprintf(dst, sizeof(dst), CURDIR"%s.out", *t);
+            exec(src, dst);
+        }
+    }
+    else
+    {
+        int i;
+        for (i = 1; i < argc; i++)
+        {
+            char dst[256];
+            int len = strlen(argv[i]);
+            if (4 < len && len < sizeof(dst) && strcmp(argv[i] + len - 4, ".asm") == 0)
             {
-                fwrite(text_buf, (int)text_size, 1, f);
-                fclose(f);
+                strncpy(dst, argv[i], sizeof(dst));
+                dst[len - 4] = 0;
+                strncat(dst, ".out", sizeof(dst));
             }
+            else
+                snprintf(dst, sizeof(dst), "%s.out", argv[i]);
+            exec(argv[i], dst);
         }
     }
     return 0;
@@ -1813,6 +1840,13 @@ char *strncat(char *dst, const char *src, int size)
     for (; size > 0 && *dst; size--, dst++);
     strncpy(dst, src, size);
     return dst;
+}
+
+int strlen(const char *s)
+{
+    int ret = 0;
+    for (; *s; s++, ret++);
+    return ret;
 }
 
 void *memset(void *dst, int c, int len)

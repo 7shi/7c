@@ -1207,6 +1207,31 @@ int read_text(const char *fn)
     return ret;
 }
 
+void exec(const char *src, const char *dst)
+{
+    printf("%s -> %s\n", src, dst);
+    if (read_text(src))
+    {
+        FILE *f;
+        printf("text_addr: 0x%08x\n", text_addr);
+        printf("text_size: 0x%08x\n", text_size);
+        f = fopen(dst, "w");
+        if (f)
+        {
+            int j;
+            for (j = 0; j < text_size; j += 4)
+            {
+                enum Op op;
+                fprintf(f, "0x%08x: ", (long)(text_addr + j));
+                op = disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
+                fprintf(f, "\n");
+                if (op == Ret) fprintf(f, "\n");
+            }
+            fclose(f);
+        }
+    }
+}
+
 #ifdef _MSC_VER
 #define CURDIR "../Test/"
 #else
@@ -1218,35 +1243,28 @@ const char *tests[] =
     "1", "2", "3", "4", "5", "6", "7t", "7d", "7a", 0
 };
 
-int main()
+int main(int argc, char *argv[])
 {
-    const char **t;
     init_table();
-    for (t = tests; *t; t++)
+    if (argc < 2)
     {
-        char src[32], dst[32];
-        snprintf(src, sizeof(src), CURDIR"%s", *t);
-        snprintf(dst, sizeof(dst), CURDIR"%s.asm", *t);
-        printf("%s -> %s\n", src, dst);
-        if (read_text(src))
+        const char **t;
+        for (t = tests; *t; t++)
         {
-            FILE *f;
-            printf("text_addr: 0x%08x\n", text_addr);
-            printf("text_size: 0x%08x\n", text_size);
-            f = fopen(dst, "w");
-            if (f)
-            {
-                int j;
-                for (j = 0; j < text_size; j += 4)
-                {
-                    enum Op op;
-                    fprintf(f, "0x%08x: ", (long)(text_addr + j));
-                    op = disassemble(f, text_addr + j, *(uint32_t *)&text_buf[j]);
-                    fprintf(f, "\n");
-                    if (op == Ret) fprintf(f, "\n");
-                }
-                fclose(f);
-            }
+            char src[32], dst[32];
+            snprintf(src, sizeof(src), CURDIR"%s", *t);
+            snprintf(dst, sizeof(dst), CURDIR"%s.asm", *t);
+            exec(src, dst);
+        }
+    }
+    else
+    {
+        int i;
+        for (i = 1; i < argc; i++)
+        {
+            char dst[256];
+            snprintf(dst, sizeof(dst), "%s.asm", argv[i]);
+            exec(argv[i], dst);
         }
     }
     return 0;
