@@ -1,3 +1,20 @@
+int printf(const char *, ...);
+
+void main()
+{
+    int a, b, c, i, sum = 0;
+    printf("%s, %s%c\n", "Hello", "World", '!');
+    a = 1;
+    b = 2;
+    c = a + b;
+    printf("%d + %d = %d\n", a, b, c);
+    printf("&a: %p, &b: %p, &c: %p\n", &a, &b, &c);
+    for (i = 1; i <= 10000; i++) sum += i;
+    printf("1 + 2 + ... + 9999 + 10000 = %d\n", sum);
+}
+
+/* libc implementation */
+
 int (*fputc)(int, void *) = (void *)0x00ef0004;
 
 int printstr(const char *s)
@@ -13,12 +30,7 @@ int printlong(long v)
     char *p;
     unsigned long uv = (unsigned long)v;
     int ret = 0;
-    if (v == 0)
-    {
-        fputc('0', 0);
-        return 1;
-    }
-    else if (v < 0)
+    if (v < 0)
     {
         fputc('-', 0);
         ret++;
@@ -26,8 +38,11 @@ int printlong(long v)
     }
     p = buf + sizeof(buf) - 1;
     *p = '\0';
-    for (; uv; uv /= 10)
-        *(--p) = '0' + (uv % 10);
+    if (v == 0)
+        *(--p) = '0';
+    else
+        for (; uv; uv /= 10)
+            *(--p) = '0' + (uv % 10);
     return ret + printstr(p);
 }
 
@@ -62,14 +77,14 @@ int printf(const char *format, ...)
             switch (*(++p))
             {
             case 'd':
-                ret += printlong(*(int *)(arg++));
+                ret += printlong(*(long *)(arg++));
                 break;
             case 'x':
-                ret += printhex(*(int *)(arg++), 0);
+                ret += printhex(*(unsigned long *)(arg++), 0);
                 break;
             case 'p':
                 printstr("0x");
-                ret += printhex(*(int *)(arg++), 16) + 2;
+                ret += printhex(*(unsigned long *)(arg++), 16) + 2;
                 break;
             case 'c':
                 fputc(*(char *)(arg++), 0);
@@ -97,17 +112,4 @@ int printf(const char *format, ...)
         }
     }
     return ret;
-}
-
-void main()
-{
-    int a, b, c, i, sum = 0;
-    printf("%s, %s%c\n", "Hello", "World", '!');
-    a = 1;
-    b = 2;
-    c = a + b;
-    printf("%d + %d = %d\n", a, b, c);
-    printf("&a: %p, &b: %p, &c: %p\n", &a, &b, &c);
-    for (i = 1; i <= 10000; i++) sum += i;
-    printf("1 + 2 + ... + 9999 + 10000 = %d\n", sum);
 }

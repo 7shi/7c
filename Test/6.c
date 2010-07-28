@@ -157,14 +157,14 @@ int vfsnprintf(FILE *f, char **sb, int *len, const char *format, void **args)
                 p--;
                 break;
             case 'd':
-                ret += fsnprintlong(*(int *)(args++), 0, '0', f, sb, len);
+                ret += fsnprintlong(*(long *)(args++), 0, '0', f, sb, len);
                 break;
             case 'x':
-                ret += fsnprinthex(*(int *)(args++), 0, '0', f, sb, len);
+                ret += fsnprinthex(*(unsigned long *)(args++), 0, '0', f, sb, len);
                 break;
             case 'p':
                 fsnprintstr("0x", f, sb, len);
-                ret += fsnprinthex(*(int *)(args++), 16, '0', f, sb, len) + 2;
+                ret += fsnprinthex(*(unsigned long *)(args++), 16, '0', f, sb, len) + 2;
                 break;
             case 'c':
                 fsnputc(*(char *)(args++), f, sb, len);
@@ -192,10 +192,10 @@ int vfsnprintf(FILE *f, char **sb, int *len, const char *format, void **args)
                 switch (*p)
                 {
                 case 'd':
-                    ret += fsnprintlong(*(int *)(args++), n, pad, f, sb, len);
+                    ret += fsnprintlong(*(long *)(args++), n, pad, f, sb, len);
                     break;
                 case 'x':
-                    ret += fsnprinthex(*(int *)(args++), n, pad, f, sb, len);
+                    ret += fsnprinthex(*(unsigned long *)(args++), n, pad, f, sb, len);
                     break;
                 default:
                     for (; pp <= p; pp++, ret++) fsnputc(*pp, f, sb, len);
